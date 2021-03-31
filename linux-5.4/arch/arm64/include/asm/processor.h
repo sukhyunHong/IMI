@@ -214,6 +214,18 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 	regs->sp = sp;
 }
 
+static inline void start_thread_iso(struct pt_regs *regs, unsigned long pc,
+				unsigned long sp)
+{
+	start_thread_common(regs, pc);
+	regs->pstate = PSR_MODE_EL1t;
+
+	if (arm64_get_ssbd_state() != ARM64_SSBD_FORCE_ENABLE)
+		set_ssbs_bit(regs);
+
+	regs->sp = sp;
+}
+
 #ifdef CONFIG_COMPAT
 static inline void compat_start_thread(struct pt_regs *regs, unsigned long pc,
 				       unsigned long sp)

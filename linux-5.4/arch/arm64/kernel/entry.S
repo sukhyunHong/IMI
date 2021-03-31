@@ -996,7 +996,18 @@ finish_ret_to_user:
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
 #endif
+	mov x1, sp
+	add x1, x1, 0x108
+	ldr x1, [x1]
+	mov x2, 0xF
+	and x1, x1, x2
+	cmp x1, #PSR_MODE_EL1t
+	b.eq call_exit_1
 	kernel_exit 0
+	b call_exit_2
+call_exit_1:
+	kernel_exit 1
+call_exit_2:
 ENDPROC(ret_to_user)
 
 /*

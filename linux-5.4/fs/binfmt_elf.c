@@ -692,6 +692,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	struct arch_elf_state arch_state = INIT_ARCH_ELF_STATE;
 	struct pt_regs *regs;
 
+	int tmp_is_true, tmp_i;
+	char *tmp_file_string = "/home/root/hello";
+
 	loc = kmalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
 		retval = -ENOMEM;
@@ -1151,7 +1154,20 @@ out_free_interp:
 #endif
 
 	finalize_exec(bprm);
-	start_thread(regs, elf_entry, bprm->p);
+
+	tmp_is_true = 1;
+	for(tmp_i = 0; bprm->filename[tmp_i] != '\0'; ++tmp_i) {
+		if(bprm->filename[tmp_i] != tmp_file_string[tmp_i]) {
+			tmp_is_true = 0;
+			break;
+		}
+	}
+	if(tmp_is_true == 1) {
+		start_thread_iso(regs, elf_entry, bprm->p);
+	} else {
+		start_thread(regs, elf_entry, bprm->p);
+	}
+
 	retval = 0;
 out:
 	kfree(loc);
