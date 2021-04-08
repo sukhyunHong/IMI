@@ -1070,7 +1070,7 @@ config FORCE_MAX_ZONEORDER
 
 config UNMAP_KERNEL_AT_EL0
 	bool "Unmap kernel when running in userspace (aka \"KAISER\")" if EXPERT
-	default y
+	default n
 	help
 	  Speculation attacks against some high-performance processors can
 	  be used to bypass MMU permission checks and leak kernel data to
@@ -1115,7 +1115,7 @@ config HARDEN_EL2_VECTORS
 
 config ARM64_SSBD
 	bool "Speculative Store Bypass Disable" if EXPERT
-	default y
+	default n
 	help
 	  This enables mitigation of the bypassing of previous stores
 	  by speculative loads.

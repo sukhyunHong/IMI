@@ -466,10 +466,10 @@ alternative_endif
 
 	.align	11
 ENTRY(vectors)
-	kernel_ventry	1, sync_invalid			// Synchronous EL1t
-	kernel_ventry	1, irq_invalid			// IRQ EL1t
-	kernel_ventry	1, fiq_invalid			// FIQ EL1t
-	kernel_ventry	1, error_invalid		// Error EL1t
+	kernel_ventry	0, sync			// Synchronous EL1t
+	kernel_ventry	0, irq			// IRQ EL1t
+	kernel_ventry	0, fiq_invalid			// FIQ EL1t
+	kernel_ventry	0, error		// Error EL1t
 
 	kernel_ventry	1, sync				// Synchronous EL1h
 	kernel_ventry	1, irq				// IRQ EL1h
@@ -996,6 +996,7 @@ finish_ret_to_user:
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
 #endif
+/*
 	mov x1, sp
 	add x1, x1, 0x108
 	ldr x1, [x1]
@@ -1008,6 +1009,8 @@ finish_ret_to_user:
 call_exit_1:
 	kernel_exit 1
 call_exit_2:
+*/
+	kernel_exit 0
 ENDPROC(ret_to_user)
 
 /*
