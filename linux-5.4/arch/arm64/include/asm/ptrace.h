@@ -202,8 +202,9 @@ static inline void forget_syscall(struct pt_regs *regs)
 #define compat_thumb_mode(regs) (0)
 #endif
 
-#define user_mode(regs)	\
-	(((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL0t)
+#define user_mode(regs)    \
+    ((((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL0t) || \
+    (((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL1t))
 
 #define compat_user_mode(regs)	\
 	(((regs)->pstate & (PSR_MODE32_BIT | PSR_MODE_MASK)) == \

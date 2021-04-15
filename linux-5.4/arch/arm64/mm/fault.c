@@ -232,6 +232,7 @@ static bool is_el1_instruction_abort(unsigned int esr)
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
 }
 
+/*
 static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
 					   struct pt_regs *regs)
 {
@@ -250,6 +251,30 @@ static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
 
 	return false;
 }
+*/
+
+static inline bool is_el1h_permission_fault(unsigned long addr, unsigned int esr,
+					   struct pt_regs *regs)
+{
+	unsigned int ec       = ESR_ELx_EC(esr);
+	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
+	bool is_el1t = (((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL1t);
+
+	if (is_el1t && (ec == ESR_ELx_EC_DABT_CUR || ec == ESR_ELx_EC_IABT_CUR))
+		return false;
+	else if (ec != ESR_ELx_EC_DABT_CUR && ec != ESR_ELx_EC_IABT_CUR)
+		return false;
+
+	if (fsc_type == ESR_ELx_FSC_PERM)
+		return true;
+
+	if (is_ttbr0_addr(addr) && system_uses_ttbr0_pan())
+		return fsc_type == ESR_ELx_FSC_FAULT &&
+			(regs->pstate & PSR_PAN_BIT);
+
+	return false;
+}
+
 
 static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 							unsigned int esr,
@@ -315,7 +340,7 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	    "Ignoring spurious kernel translation fault at virtual address %016lx\n", addr))
 		return;
 
-	if (is_el1_permission_fault(addr, esr, regs)) {
+	if (is_el1h_permission_fault(addr, esr, regs)) {
 		if (esr & ESR_ELx_WNR)
 			msg = "write to read-only memory";
 		else
@@ -434,8 +459,18 @@ static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
 	return handle_mm_fault(vma, addr & PAGE_MASK, mm_flags);
 }
 
+/*
 static bool is_el0_instruction_abort(unsigned int esr)
 {
+	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
+}
+*/
+
+static bool is_el0_or_iso_el1t_instruction_abort(struct pt_regs *regs, unsigned int esr)
+{
+	if(((regs)->pstate & PSR_MODE_MASK) == PSR_MODE_EL1t) {
+		return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
+	}
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
 }
 
@@ -470,7 +505,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	if (user_mode(regs))
 		mm_flags |= FAULT_FLAG_USER;
 
-	if (is_el0_instruction_abort(esr)) {
+	if (is_el0_or_iso_el1t_instruction_abort(regs, esr)) {
 		vm_flags = VM_EXEC;
 		mm_flags |= FAULT_FLAG_INSTRUCTION;
 	} else if (is_write_abort(esr)) {
@@ -478,7 +513,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
 
-	if (is_ttbr0_addr(addr) && is_el1_permission_fault(addr, esr, regs)) {
+	if (is_ttbr0_addr(addr) && is_el1h_permission_fault(addr, esr, regs)) {
 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
 		if (regs->orig_addr_limit == KERNEL_DS)
 			die_kernel_fault("access to user memory with fs=KERNEL_DS",

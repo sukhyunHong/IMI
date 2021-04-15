@@ -466,7 +466,7 @@ alternative_endif
 
 	.align	11
 ENTRY(vectors)
-	kernel_ventry	0, sync			// Synchronous EL1t
+	kernel_ventry	0, sync_iso			// Synchronous EL1t
 	kernel_ventry	0, irq			// IRQ EL1t
 	kernel_ventry	0, fiq_invalid			// FIQ EL1t
 	kernel_ventry	0, error		// Error EL1t
@@ -571,6 +571,40 @@ ENDPROC(el1_fiq_invalid)
 el1_error_invalid:
 	inv_entry 1, BAD_ERROR
 ENDPROC(el1_error_invalid)
+
+/* 
+ * EL1t mode handlers.
+ */
+ .align	6
+el0_sync_iso:
+	kernel_entry 0
+	mrs	x25, esr_el1			// read the syndrome register
+	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class
+	cmp	x24, #ESR_ELx_EC_SVC64		// SVC in 64-bit state
+	b.eq	el0_svc
+	cmp	x24, #ESR_ELx_EC_DABT_CUR	// data abort in EL1t
+	b.eq	el0_da
+	cmp	x24, #ESR_ELx_EC_IABT_CUR	// instruction abort in EL1t
+	b.eq	el0_ia
+	cmp	x24, #ESR_ELx_EC_FP_ASIMD	// FP/ASIMD access
+	b.eq	el0_fpsimd_acc
+	cmp	x24, #ESR_ELx_EC_SVE		// SVE access
+	b.eq	el0_sve_acc
+	cmp	x24, #ESR_ELx_EC_FP_EXC64	// FP/ASIMD exception
+	b.eq	el0_fpsimd_exc
+	cmp	x24, #ESR_ELx_EC_SYS64		// configurable trap
+	ccmp	x24, #ESR_ELx_EC_WFx, #4, ne
+	b.eq	el0_sys
+	cmp	x24, #ESR_ELx_EC_SP_ALIGN	// stack alignment exception
+	b.eq	el0_sp
+	cmp	x24, #ESR_ELx_EC_PC_ALIGN	// pc alignment exception
+	b.eq	el0_pc
+	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL1t
+	b.eq	el0_undef
+	cmp	x24, #ESR_ELx_EC_BREAKPT_CUR	// debug exception in EL1t
+	b.ge	el0_dbg
+	b	el0_inv
+ENDPROC(el0_sync_iso)
 
 /*
  * EL1 mode handlers.
