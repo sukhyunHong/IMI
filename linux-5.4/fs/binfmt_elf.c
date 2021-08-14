@@ -692,8 +692,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	struct arch_elf_state arch_state = INIT_ARCH_ELF_STATE;
 	struct pt_regs *regs;
 
-	int tmp_is_true, tmp_i;
-	char *tmp_file_string = "/home/root/hello";
+    int iso_is_true = 0;
+    int file_name_idx = 0;
+    char iso_name[] = ".iso";
+    
 
 	loc = kmalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
@@ -1151,22 +1153,35 @@ out_free_interp:
 	 * function descriptor entries when executing dynamically links apps.
 	 */
 	ELF_PLAT_INIT(regs, reloc_func_desc);
-#endif
+#endif	
+    
+    finalize_exec(bprm);
 
-	finalize_exec(bprm);
+    file_name_idx = -1; 
+    iso_is_true = 0;
+    while(1){
+        ++file_name_idx;
 
-	tmp_is_true = 1;
-	for(tmp_i = 0; bprm->filename[tmp_i] != '\0'; ++tmp_i) {
-		if(bprm->filename[tmp_i] != tmp_file_string[tmp_i]) {
-			tmp_is_true = 0;
-			break;
-		}
-	}
-	if(tmp_is_true == 1) {
-		start_thread_iso(regs, elf_entry, bprm->p);
-	} else {
-		start_thread(regs, elf_entry, bprm->p);
-	}
+        if(iso_is_true || bprm->filename[file_name_idx] == '\0')
+            break;
+
+        if(bprm->filename[file_name_idx] == '.'){
+            iso_is_true = 1;
+            for(i = 0 ; i < 4;  i++){
+                if(bprm->filename[file_name_idx +i] == '\0' || bprm->filename[file_name_idx + i] != iso_name[i]){
+                    iso_is_true = 0;
+                    break;
+                }
+            }  
+        }
+    }
+
+    if( iso_is_true){ 
+        iso_start_thread(regs, elf_entry, bprm->p);
+        printk("%lu",STACK_TOP_MAX);
+    }
+    else 
+	    start_thread(regs, elf_entry, bprm->p);
 
 	retval = 0;
 out:

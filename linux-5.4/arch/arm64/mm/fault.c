@@ -488,9 +488,29 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 {
 	const struct fault_info *inf;
 	struct mm_struct *mm = current->mm;
+	//struct mm_struct *mm;
 	vm_fault_t fault, major = 0;
 	unsigned long vm_flags = VM_READ | VM_WRITE;
 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+
+	/* 이제 해야할 일은 mm을 바꿔서 하는게 아니라
+	 * 1. default에는 정상적으로 올라가 있는가?
+	 *    - 올라가 있다면 
+	 */
+	/*
+	uint64_t ttbr0_el1;
+	if(!current->mm) { // kernel task...
+		mm = current->mm;
+	} else {
+		asm volatile ( "mrs %0, ttbr0_el1\n\t"
+					: "=r" (ttbr0_el1));
+		if(ttbr0_el1 == (phys_to_ttbr(virt_to_phys(current->mm->pgd)) & 0x0000FFFFFFFFFFFF)) {
+			mm = current->mm;
+		} else {
+			mm = current->domain_mm;
+		}
+	}
+	*/
 
 	if (kprobe_page_fault(regs, esr))
 		return 0;

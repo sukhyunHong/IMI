@@ -884,3 +884,11 @@ __SYSCALL(__NR_clone3, sys_clone3)
  * Please add new compat syscalls above this comment and update
  * __NR_compat_syscalls in asm/unistd.h.
  */
+#define __NR_iso_create_domain 436
+__SYSCALL(__NR_iso_create_domain, sys_iso_create_domain)
+#define __NR_iso_assign_memory 437
+__SYSCALL(__NR_iso_assign_memory, sys_iso_assign_memory)
+#define __NR_iso_init 438
+__SYSCALL(__NR_iso_init, sys_iso_init)
+#define __NR_iso_flush_tlb_all 439
+__SYSCALL(__NR_iso_flush_tlb_all, sys_iso_flush_tlb_all)

@@ -1225,6 +1225,14 @@ asmlinkage long sys_ni_syscall(void);
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
 
+/* 
+ * Isolated module system call.
+ */
+ asmlinkage long sys_iso_create_domain(void **ttbr0, unsigned long *stack_Addr);
+ asmlinkage unsigned long sys_iso_assign_memory(int dom_num, uint64_t addr, uint64_t size);
+ asmlinkage long sys_iso_init(void);
+ asmlinkage long sys_iso_flush_tlb_all(void);
+
 /*
  * Kernel code should not call syscalls (i.e., sys_xyzyyz()) directly.
  * Instead, use one of the functions which work equivalently, such as

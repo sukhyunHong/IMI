@@ -214,7 +214,7 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
 	regs->sp = sp;
 }
 
-static inline void start_thread_iso(struct pt_regs *regs, unsigned long pc,
+static inline void iso_start_thread(struct pt_regs *regs, unsigned long pc,
 				unsigned long sp)
 {
 	start_thread_common(regs, pc);
