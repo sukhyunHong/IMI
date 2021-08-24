@@ -1176,9 +1176,9 @@ out_free_interp:
         }
     }
 
-    if( iso_is_true){ 
+    if( iso_is_true){
         iso_start_thread(regs, elf_entry, bprm->p);
-        printk("%lu",STACK_TOP_MAX);
+        current->saved_domain_context = kmalloc(sizeof(struct domain_context),GFP_KERNEL);
     }
     else 
 	    start_thread(regs, elf_entry, bprm->p);

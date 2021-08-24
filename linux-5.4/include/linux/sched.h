@@ -31,6 +31,7 @@
 #include <linux/task_io_accounting.h>
 #include <linux/posix-timers.h>
 #include <linux/rseq.h>
+#include <asm/iso_module.h>
 
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
@@ -1266,9 +1267,17 @@ struct task_struct {
 	unsigned long			prev_lowest_stack;
 #endif
 
-	// Isolation part...
-	void					*iso_meta_data;
-	struct	mm_struct		*domain_mm;
+	// Isolation part..
+    
+    //Only kernel can access
+    int                         is_iso;
+	struct	domain_mm_list		*domain_mm;
+    struct  domain_context      *saved_domain_context;
+	
+	// Both kernel and app can access...
+	unsigned long			*cur_dom_num;
+	dom_data				*iso_meta_data;
+
 
 	/*
 	 * New fields for task_struct should be added above here, so that

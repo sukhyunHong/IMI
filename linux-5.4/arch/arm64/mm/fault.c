@@ -201,9 +201,14 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 	pteval_t old_pteval, pteval;
 	pte_t pte = READ_ONCE(*ptep);
 
-	if (pte_same(pte, entry))
-		return 0;
+	if (pte_same(pte, entry)){
 
+		if(current->is_iso && current->domain_mm){
+			update_domain_pte(address,ptep);
+		}
+		
+		return 0;
+	}
 	/* only preserve the access flags and write permission */
 	pte_val(entry) &= PTE_RDONLY | PTE_AF | PTE_WRITE | PTE_DIRTY;
 
@@ -222,6 +227,10 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 		pteval ^= PTE_RDONLY;
 		pteval = cmpxchg_relaxed(&pte_val(*ptep), old_pteval, pteval);
 	} while (pteval != old_pteval);
+
+	if(current->is_iso && current->domain_mm){
+		update_domain_pte(address,ptep);
+	}
 
 	flush_tlb_fix_spurious_fault(vma, address);
 	return 1;

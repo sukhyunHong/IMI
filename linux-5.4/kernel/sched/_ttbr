@@ -3333,10 +3333,10 @@ void save_domain_context(struct task_struct * tsk){
     unsigned long ttbr0;
     unsigned long ttbr1;
 
-    asm( "mrs %0, TTBR0_EL1\n\t"  
+    asm( "mrs %0, TTBR0_EL1\r\n"  
             :"=r"(ttbr0)
             :);
-     asm( "mrs %0, TTBR1_EL1\n\t"  
+     asm( "mrs %0, TTBR1_EL1\r\n"  
             :"=r"(ttbr1)
             :);
     tsk->saved_domain_context->ttbr0 = ttbr0;
@@ -3351,7 +3351,6 @@ static __always_inline struct rq *
 context_switch(struct rq *rq, struct task_struct *prev,
 	       struct task_struct *next, struct rq_flags *rf)
 {
-    unsigned long ttbr;
 	prepare_task_switch(rq, prev, next);
 
 	/*
@@ -3372,20 +3371,63 @@ context_switch(struct rq *rq, struct task_struct *prev,
 		enter_lazy_tlb(prev->active_mm, next);
 
 		next->active_mm = prev->active_mm;
-		if (prev->mm){                          // from user
-			mmgrab(prev->active_mm);
+		if (prev->mm){                             // from user
+            mmgrab(prev->active_mm);
+            /*   
             if(prev->is_iso && prev->domain_mm){
                 save_domain_context(prev);
-            }
+            }*/
+
+          if(prev->is_iso && prev->domain_mm){
+                /*
+                unsigned long ttbr0;
+                unsigned long ttbr1;
+            
+                asm( "mrs %0, TTBR0_EL1\n\t"
+                    : "=r"(ttbr0)
+                    : 
+                    );
+
+                asm( "mrs %0, TTBR1_EL1\n\t"
+                 : "=r"(ttbr1)
+                 : 
+                ); 
+                
+               
+            printk("save ttbr %lx %lx \n",ttbr0, ttbr1);
+            */
+            save_domain_context(prev);
+
+         }
+            
         }
 		else
 			prev->active_mm = NULL;
-	} else {  // to user
+	} else {                                        // to user
+         
 
         if(prev->mm){
             if(prev->is_iso && prev->domain_mm){
-                save_domain_context(prev);
+
+                /*
+                unsigned long ttbr0;
+                unsigned long ttbr1;
+            
+            asm( "mrs %0, TTBR0_EL1\n\t"
+             : "=r"(ttbr0)
+             : 
+             );
+
+                asm( "mrs %0, TTBR1_EL1\n\t"
+                : "=r"(ttbr1)
+                : 
+                ); 
+
+            printk("save ttbr %lx %lx \n",ttbr0, ttbr1);
             }
+            */
+            save_domain_context(prev);
+        
         }
 		membarrier_switch_mm(rq, prev->active_mm, next->mm);
 		/*
@@ -3402,7 +3444,8 @@ context_switch(struct rq *rq, struct task_struct *prev,
 			/* will mmdrop() in finish_task_switch(). */
 			rq->prev_mm = prev->active_mm;
 			prev->active_mm = NULL;
-		}
+		}     
+       
 	}
 
 	rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);

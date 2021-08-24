@@ -20,11 +20,6 @@ SYSCALL_DEFINE1(iso_create_domain, uint64_t **, ttbr0)
 }
 */
 
-SYSCALL_DEFINE0(iso_flush_tlb_all)
-{
-    flush_tlb_all();
-    return 0;
-}
 
 /*
 .pushsection ".entry.cxgdom.text", "ax"

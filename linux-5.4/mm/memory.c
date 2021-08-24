@@ -130,6 +130,80 @@ EXPORT_SYMBOL(zero_pfn);
 
 unsigned long highest_memmap_pfn __read_mostly;
 
+void update_domain_pte(unsigned long addr,  pte_t* src_pte){
+   
+    struct mm_struct * d_mm ; 
+    struct domain_mm_list * dml = current->domain_mm;
+    struct vm_area_struct * d_vma; 
+    
+
+    pgd_t * pgd;
+    p4d_t * p4d;
+    pud_t * pud;
+    pmd_t * pmd;
+    pte_t * pte;
+    spinlock_t *ptl;
+    
+
+    if(!src_pte)
+        return ;
+
+    
+    while(dml != NULL){
+        /*
+        d_vma = find_vma(dml->mm, addr);
+    
+       
+        if(d_vma == NULL){
+            dml = dml->next;
+            continue;
+        }
+        
+        if(d_vma->vm_start > addr || d_vma->vm_end < addr){
+            dml = dml->next;
+            continue; 
+        }
+      
+        d_mm = d_vma->vm_mm;
+        */
+        d_mm = dml->mm;
+
+        pgd = pgd_offset(d_mm, addr);
+        p4d = p4d_alloc(d_mm,pgd,addr);
+
+
+        if(!p4d)
+            printk("Debug p4d oom\n");
+    
+        pud = pud_alloc(d_mm, p4d, addr);
+    
+        if(!pud){
+            printk("Debug pud oom\n");
+		    return;
+	    }
+        pmd = pmd_alloc(d_mm, pud, addr );
+    
+        if(!pmd){
+            printk("Debug pmd oom\n");
+		    return;
+	    }
+
+        if(pmd_none(*pmd)){
+            pte_alloc(d_mm,pmd);      
+        }
+        // next implementation need to set prot pte here... dont forget...
+        // set_pte_prot(vma).... 
+
+	    //domain page table pte update 
+        ptl = pte_lockptr(d_mm, pmd);
+        pte = pte_offset_map_lock(d_mm, pmd,addr, &ptl);
+        set_pte_at(d_mm, addr, pte, *src_pte);
+        pte_unmap_unlock(pte, ptl);
+
+        dml = dml->next;
+   }
+}
+
 /*
  * CONFIG_MMU architectures set up ZERO_PAGE in their paging_init()
  */
@@ -381,7 +455,7 @@ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		unlink_anon_vmas(vma);
 		unlink_file_vma(vma);
 
-		if (is_vm_hugetlb_page(vma)) {
+		if (is_vm_hugetlb_page(vma)) {	
 			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
 				floor, next ? next->vm_start : ceiling);
 		} else {
@@ -2374,6 +2448,11 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		 */
 		set_pte_at_notify(mm, vmf->address, vmf->pte, entry);
 		update_mmu_cache(vma, vmf->address, vmf->pte);
+
+		if(current->is_iso && current->domain_mm){
+			update_domain_pte(vmf->address, vmf->pte);
+		}
+
 		if (old_page) {
 			/*
 			 * Only after switching the pte to the new page may
@@ -2924,6 +3003,10 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(vma, vmf->address, vmf->pte);
+	if(current->is_iso && current->domain_mm){
+		update_domain_pte(vmf->address, vmf->pte);
+	}
+
 unlock:
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 out:
@@ -3044,6 +3127,10 @@ setpte:
 
 	/* No need to invalidate - it was non-present before */
 	update_mmu_cache(vma, vmf->address, vmf->pte);
+	if(current->is_iso && current->domain_mm){
+		update_domain_pte(vmf->address, vmf->pte);
+	}
+	
 unlock:
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 	return ret;
@@ -3620,7 +3707,12 @@ static vm_fault_t do_fault(struct vm_fault *vmf)
 		ret = do_cow_fault(vmf);
 	else
 		ret = do_shared_fault(vmf);
+	
+	if(current->is_iso && current->domain_mm){
+			update_domain_pte(vmf->address, vmf->pte);
+	}
 
+	
 	/* preallocated pagetable is unused: free it */
 	if (vmf->prealloc_pte) {
 		pte_free(vm_mm, vmf->prealloc_pte);
@@ -3869,6 +3961,11 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 	if (ptep_set_access_flags(vmf->vma, vmf->address, vmf->pte, entry,
 				vmf->flags & FAULT_FLAG_WRITE)) {
 		update_mmu_cache(vmf->vma, vmf->address, vmf->pte);
+
+		if(current->is_iso && current->domain_mm){
+			update_domain_pte(vmf->address, vmf->pte);
+		}
+
 	} else {
 		/*
 		 * This is needed only for protection faults but the arch code
@@ -4932,13 +5029,12 @@ static inline int iso_copy_p4d_range(struct mm_struct *dst_mm, struct mm_struct 
 }
 
 int iso_copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		struct vm_area_struct *vma, unsigned long addr, unsigned long size)
+		struct vm_area_struct *vma, unsigned long addr, unsigned long end)
 {
 	pgd_t *src_pgd, *dst_pgd;
 	unsigned long next;
 	//unsigned long addr = vma->vm_start;
 	//unsigned long end = vma->vm_end;
-	unsigned long end = addr + size;
 	struct mmu_notifier_range range;
 	bool is_cow;
 	int ret;

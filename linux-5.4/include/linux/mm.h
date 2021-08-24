@@ -28,6 +28,7 @@
 #include <linux/overflow.h>
 #include <linux/sizes.h>
 
+
 struct mempolicy;
 struct anon_vma;
 struct anon_vma_chain;
@@ -1539,7 +1540,7 @@ int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
 /* Container for pinned pfns / pages */
 struct frame_vector {
 	unsigned int nr_allocated;	/* Number of frames we have space for */
-	unsigned int nr_frames;	/* Number of frames stored in ptrs array */
+    unsigned int nr_frames;	/* Number of frames stored in ptrs array */
 	bool got_ref;		/* Did we pin pages by getting page ref? */
 	bool is_pfns;		/* Does array contain pages or pfns? */
 	void *ptrs[0];		/* Array of pinned pfns / pages. Use
@@ -2882,7 +2883,21 @@ static inline int pages_identical(struct page *page1, struct page *page2)
 
 // isolation module
 int iso_copy_page_range(struct mm_struct *dst, struct mm_struct *src,
-			struct vm_area_struct *vma, unsigned long addr, unsigned long size);
+			struct vm_area_struct *vma, unsigned long addr, unsigned long end);
+void update_domain_pte(unsigned long addr, pte_t* src_pte);
+
+
+struct domain_mm_list{
+    int dom_num; 
+    struct mm_struct * mm;
+    struct domain_mm_list *next;
+};
+
+struct domain_context{
+    unsigned long ttbr0;
+    unsigned long ttbr1;
+};
+
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

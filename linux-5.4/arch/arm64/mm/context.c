@@ -131,7 +131,7 @@ static bool check_update_reserved_asid(u64 asid, u64 newasid)
 	return hit;
 }
 
-static u64 new_context(struct mm_struct *mm)
+u64 new_context(struct mm_struct *mm)
 {
 	static u32 cur_idx = 1;
 	u64 asid = atomic64_read(&mm->context.id);
@@ -179,6 +179,78 @@ set_asid:
 	cur_idx = asid;
 	return idx2asid(asid) | generation;
 }
+
+// without generation
+static u64 iso_new_context(struct mm_struct *mm)
+{
+	static u32 cur_idx = 1;
+	u64 asid = atomic64_read(&mm->context.id);
+	u64 generation = atomic64_read(&asid_generation);
+
+	if (asid != 0) {
+		u64 newasid = generation | (asid & ~ASID_MASK);
+
+		/*
+		 * If our current ASID was active during a rollover, we
+		 * can continue to use it and this was just a false alarm.
+		 */
+		if (check_update_reserved_asid(asid, newasid))
+			return newasid;
+
+		/*
+		 * We had a valid ASID in a previous life, so try to re-use
+		 * it if possible.
+		 */
+		if (!__test_and_set_bit(asid2idx(asid), asid_map))
+			return newasid;
+	}
+
+	/*
+	 * Allocate a free ASID. If we can't find one, take a note of the
+	 * currently active ASIDs and mark the TLBs as requiring flushes.  We
+	 * always count from ASID #2 (index 1), as we use ASID #0 when setting
+	 * a reserved TTBR0 for the init_mm and we allocate ASIDs in even/odd
+	 * pairs.
+	 */
+	asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, cur_idx);
+	if (asid != NUM_USER_ASIDS)
+		goto set_asid;
+
+	/* We're out of ASIDs, so increment the global generation count */
+	generation = atomic64_add_return_relaxed(ASID_FIRST_VERSION,
+						 &asid_generation);
+	flush_context();
+
+	/* We have more ASIDs than CPUs, so this will always succeed */
+	asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
+
+set_asid:
+	__set_bit(asid, asid_map);
+	cur_idx = asid;
+	return idx2asid(asid);
+}
+
+u64 iso_alloc_new_asid(struct mm_struct *mm)
+{
+	unsigned long flags; // for new domain's asid
+	u64 asid;
+	unsigned int cpu = smp_processor_id();
+
+	local_irq_disable();
+	raw_spin_lock_irqsave(&cpu_asid_lock, flags);
+	//asid = iso_new_context(mm);
+	asid = new_context(mm);
+	atomic64_set(&mm->context.id, asid);
+	//asid = asid | ~atomic64_read(&asid_generation);
+	atomic64_set(&per_cpu(active_asids, cpu), asid);
+	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
+	local_irq_enable();
+
+	return asid;
+}
+
+
+
 
 void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 {
