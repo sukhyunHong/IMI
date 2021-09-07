@@ -60,6 +60,118 @@ static pud_t bm_pud[PTRS_PER_PUD] __page_aligned_bss __maybe_unused;
 
 static DEFINE_SPINLOCK(swapper_pgdir_lock);
 
+void __attribute__((optimize("O0"), optimize("align-functions=4096"))) tramp_wrapper(void)
+{
+	// arch_local_irq_save to x6
+	// temporarly use x1 to disable irqs.
+	// flag = arch_local_irq_save();
+	asm volatile (
+		"mrs 	x6, DAIF\r\n"
+		"and	w1, w6, #0x80\r\n"
+		"cbz	w1, #8\r\n"
+		"B		#12\r\n"
+		"mov	x1, #0x60\r\n"
+		"msr	DAIFSET, #2\r\n"
+		"nop\r\n"
+	);
+	//tramp part
+	asm volatile (
+		"mov	x4, #0x1008                	// #4104\r\n"
+		"mov	w5, #0x18                  	// #24\r\n"
+		"movk	x4, #0x9986, lsl #16\r\n"
+		"mov	x1, #0x1000                	// #4096\r\n"
+		"movk	x4, #0xffff, lsl #32\r\n"
+		"movk	x1, #0x9986, lsl #16\r\n"
+		"sxtw	x2, w0\r\n"
+		"movk	x1, #0xffff, lsl #32\r\n"
+		"smaddl	x0, w0, w5, x4\r\n"
+		"mov	x3, #0x1010                	// #4112\r\n"
+		"str	x2, [x1]\r\n"
+		"movk	x3, #0x9986, lsl #16\r\n"
+		"movk	x3, #0xffff, lsl #32\r\n"
+		"ldp	x1, x2, [x0]\r\n"
+		"ldr	x0, [x0, #16]\r\n"
+		"mov	x4, sp\r\n"
+		"str	x4, [x3]\r\n"
+		"msr	ttbr0_el1, x1\r\n"
+		"dsb	ishst\r\n"
+		"tlbi	vmalle1is\r\n"
+		"nop\r\n"
+		"nop\r\n"
+		"dsb	ish\r\n"
+		"isb\r\n"
+		"mov	sp, x2\r\n"
+		"mrs	x4, ttbr1_el1\r\n"
+		"bfi	x4, x0, #48, #16\r\n"
+		"msr	ttbr1_el1, x4\r\n"
+		"isb\r\n"
+		"dsb	ishst\r\n"
+		"tlbi	vmalle1is\r\n"
+		"nop\r\n"
+		"nop\r\n"
+		"dsb	ish\r\n"
+		"isb\r\n"
+	);
+	// arch_local_irq_restore that flag is saved at x6
+	//arch_local_irq_restore(flag);
+	asm volatile (
+		"msr	DAIF, x6\r\n"
+		"nop	\r\n"
+	);
+	asm volatile ("ret\r\n");
+
+	
+	//tramp to main part
+	asm volatile (".align 9\r\n");
+	// arch_local_irq_save to x6
+	// temporarly use x1 to disable irqs.
+	// flag = arch_local_irq_save();
+	asm volatile (
+		"mrs 	x6, DAIF\r\n"
+		"and	w1, w6, #0x80\r\n"
+		"cbz	w1, #8\r\n"
+		"B		#12\r\n"
+		"mov	x1, #0x60\r\n"
+		"msr	DAIFSET, #2\r\n"
+		"nop\r\n"
+	);
+	asm volatile (
+		"mov	x1, #0x1000                	// #4096\r\n"
+		"mov	x0, #0x1008                	// #4104\r\n"
+		"movk	x1, #0x9986, lsl #16\r\n"
+		"movk	x0, #0x9986, lsl #16\r\n"
+		"movk	x1, #0xffff, lsl #32\r\n"
+		"movk	x0, #0xffff, lsl #32\r\n"
+		"str	xzr, [x1]\r\n"
+		"ldp	x1, x2, [x0]\r\n"
+		"ldr	x0, [x0, #16]\r\n"
+		"msr	ttbr0_el1, x1\r\n"
+		"mov	sp, x2\r\n"
+		"mrs	x3, ttbr1_el1\r\n"
+		"bfi	x3, x0, #48, #16\r\n"
+		"msr	ttbr1_el1, x4\r\n"
+		"isb\r\n"
+		"dsb	ishst\r\n"
+		"tlbi	vmalle1is\r\n"
+		"nop\r\n"
+		"nop\r\n"
+		"dsb	ish\r\n"
+		"isb\r\n"
+	);
+	// arch_local_irq_restore that flag is saved at x6
+	//arch_local_irq_restore(flag);
+	asm volatile (
+		"msr	DAIF, x6\r\n"
+		"nop	\r\n"
+	);
+	asm volatile ("ret\r\n");
+	// end of part
+	asm volatile (
+		".align 12\r\n"
+		"nop\r\n"
+	);
+}
+
 void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd)
 {
 	pgd_t *fixmap_pgdp;
@@ -591,6 +703,8 @@ static int __init map_entry_trampoline(void)
 
 	/* Map only the text into the trampoline page table */
 	memset(tramp_pg_dir, 0, PGD_SIZE);
+	__create_pgd_mapping(tramp_pg_dir, virt_to_phys(tramp_wrapper), 0xffff000000000000, PAGE_SIZE,
+			     prot, __pgd_pgtable_alloc, 0);
 	__create_pgd_mapping(tramp_pg_dir, pa_start, TRAMP_VALIAS, PAGE_SIZE,
 			     prot, __pgd_pgtable_alloc, 0);
 
