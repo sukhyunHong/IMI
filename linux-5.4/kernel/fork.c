@@ -3425,7 +3425,8 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 		goto free_pt;
 	
 	// stack의 메모리가 할당시 바닥을 가리키고 있으므로 상단으로 옮긴 후 application에서 조금씩 내려보내도록...
-	*stack_addr += stack_size + barrier_size;
+	// 그런데 어느정도 top으로부터 아래로 약간 내려서 domain chnge할 때 사용될 부분을 일정부분 저장...
+	*stack_addr += stack_size + barrier_size - 0x100;
 	
 	// domain metadata 저장.
 	//((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)tsk->domain_mm->pgd;
@@ -3444,6 +3445,9 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 
 	if (domain_mm->binfmt && !try_module_get(domain_mm->binfmt->module))
 		goto free_pt;
+	
+	// iso module meta data를 domain의 page table에 연결.
+	err = iso_copy_address(domain_mm, tsk->mm, 0x0000ffff99861000, 2*1024*1024);
     
     // add to domain_mm_list
     if(tsk->domain_mm){
@@ -3514,18 +3518,21 @@ SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
 SYSCALL_DEFINE0(iso_init)
 {
 	unsigned long size = 2*1024*1024;
-	unsigned long addr;
+	unsigned long addr = 0x0000ffff99861000;
 
 	printk("start iso_init\n");
 
 	current->is_iso = 1;
 
 
-	addr = ksys_mmap_pgoff(0, size, 
+	addr = ksys_mmap_pgoff(addr, size, 
 				PROT_READ | PROT_WRITE, 
-				MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
-	if(unlikely(addr == -1) || unlikely(addr == 0))
+				MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK | MAP_FIXED, -1, 0);
+	printk("iso_init addr: %lx\n", addr);
+	if(unlikely(addr == -1) || unlikely(addr == 0)) {
+		printk("iso_init error!\n");
 		return 0;
+	}
 	//current->iso_meta_data = (iso_meta_struct*)addr;
 	current->cur_dom_num = (unsigned long*)addr;
 	current->iso_meta_data = (dom_data*)(addr+8);
