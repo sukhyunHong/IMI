@@ -148,25 +148,28 @@ void update_domain_pte(unsigned long addr,  pte_t* src_pte){
     if(!src_pte)
         return ;
 
-    
+    printk("===update_domain_pte called, addr: %lx===\n", addr);
     while(dml != NULL){
-        /*
+        printk("in while\n");
         d_vma = find_vma(dml->mm, addr);
     
        
         if(d_vma == NULL){
+			printk("vma is not exist in this mm\n");
             dml = dml->next;
             continue;
         }
         
         if(d_vma->vm_start > addr || d_vma->vm_end < addr){
+			printk("addr is not exist in this mm\n");
             dml = dml->next;
             continue; 
         }
+		printk("addr is exist in this mm\n");
       
         d_mm = d_vma->vm_mm;
-        */
-        d_mm = dml->mm;
+        
+        //d_mm = dml->mm;
 
         pgd = pgd_offset(d_mm, addr);
         p4d = p4d_alloc(d_mm,pgd,addr);
