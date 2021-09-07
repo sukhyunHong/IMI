@@ -1167,6 +1167,28 @@ ENTRY(tramp_exit_compat)
 	tramp_exit	32
 END(tramp_exit_compat)
 
+// change domain code
+ENTRY(tramp_cxg_dom)
+	.align 7
+	// r8 to r15 is callee saved registers.
+	// backup x1 (domain's start function) into x9.
+	mov x9, x1
+	// backup lr into r8.
+	mov	x8, lr
+	// goto tramp
+	mov	x3, #0xffff000000000000
+	blr	x3
+	// goto domain's start function
+	blr x9
+	// goto tramp to main
+	mov x3, #0x0200
+	movk x3, #0xffff, lsl #48
+	blr x3
+	// restore lr from x8.
+	mov lr, x8
+	ret
+END(tramp_cxg_dom)
+
 	.ltorg
 	.popsection				// .entry.tramp.text
 #ifdef CONFIG_RANDOMIZE_BASE
