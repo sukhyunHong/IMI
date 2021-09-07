@@ -1167,32 +1167,6 @@ ENTRY(tramp_exit_compat)
 	tramp_exit	32
 END(tramp_exit_compat)
 
-ENTRY(iso_module)
-	.align	7
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	add x0,	x0, 1
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	ret
-END(iso_module)
-
 	.ltorg
 	.popsection				// .entry.tramp.text
 #ifdef CONFIG_RANDOMIZE_BASE
