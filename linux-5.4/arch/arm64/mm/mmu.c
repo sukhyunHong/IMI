@@ -149,7 +149,7 @@ void __attribute__((optimize("O0"), optimize("align-functions=4096"))) tramp_wra
 		"mov	sp, x2\r\n"
 		"mrs	x3, ttbr1_el1\r\n"
 		"bfi	x3, x0, #48, #16\r\n"
-		"msr	ttbr1_el1, x4\r\n"
+		"msr	ttbr1_el1, x3\r\n"
 		"isb\r\n"
 		"dsb	ishst\r\n"
 		"tlbi	vmalle1is\r\n"
