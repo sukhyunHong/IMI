@@ -118,6 +118,70 @@ alternative_else_nop_endif
 	b	el\()\el\()_\label
 	.endm
 
+
+	.macro iso_kernel_ventry, el, label, regsize = 64
+	.align 7
+	B	iso_cxg_dom_code
+iso_kernel_ventry_entry:
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+alternative_if ARM64_UNMAP_KERNEL_AT_EL0
+	.if	\el == 0
+	.if	\regsize == 64
+	mrs	x30, tpidrro_el0
+	msr	tpidrro_el0, xzr
+	.else
+	mov	x30, xzr
+	.endif
+	.endif
+alternative_else_nop_endif
+#endif
+
+	sub	sp, sp, #S_FRAME_SIZE
+#ifdef CONFIG_VMAP_STACK
+	/*
+	 * Test whether the SP has overflowed, without corrupting a GPR.
+	 * Task and IRQ stacks are aligned to (1 << THREAD_SHIFT).
+	 */
+	add	sp, sp, x0			// sp' = sp + x0
+	sub	x0, sp, x0			// x0' = sp' - x0 = (sp + x0) - x0 = sp
+	tbnz	x0, #THREAD_SHIFT, 0f
+	sub	x0, sp, x0			// x0'' = sp' - x0' = (sp + x0) - sp = x0
+	sub	sp, sp, x0			// sp'' = sp' - x0 = (sp + x0) - x0 = sp
+	b	el\()\el\()_\label
+
+0:
+	/*
+	 * Either we've just detected an overflow, or we've taken an exception
+	 * while on the overflow stack. Either way, we won't return to
+	 * userspace, and can clobber EL0 registers to free up GPRs.
+	 */
+
+	/* Stash the original SP (minus S_FRAME_SIZE) in tpidr_el0. */
+	msr	tpidr_el0, x0
+
+	/* Recover the original x0 value and stash it in tpidrro_el0 */
+	sub	x0, sp, x0
+	msr	tpidrro_el0, x0
+
+	/* Switch to the overflow stack */
+	adr_this_cpu sp, overflow_stack + OVERFLOW_STACK_SIZE, x0
+
+	/*
+	 * Check whether we were already on the overflow stack. This may happen
+	 * after panic() re-enables interrupts.
+	 */
+	mrs	x0, tpidr_el0			// sp of interrupted context
+	sub	x0, sp, x0			// delta with top of overflow stack
+	tst	x0, #~(OVERFLOW_STACK_SIZE - 1)	// within range?
+	b.ne	__bad_stack			// no? -> bad stack pointer
+
+	/* We were already on the overflow stack. Restore sp/x0 and carry on. */
+	sub	sp, sp, x0
+	mrs	x0, tpidrro_el0
+#endif
+	b	el\()\el\()_\label
+	.endm
+
 	.macro tramp_alias, dst, sym
 	mov_q	\dst, TRAMP_VALIAS
 	add	\dst, \dst, #(\sym - .entry.tramp.text)
@@ -466,7 +530,7 @@ alternative_endif
 
 	.align	11
 ENTRY(vectors)
-	kernel_ventry	0, sync_iso			// Synchronous EL1t
+	iso_kernel_ventry	0, sync_iso			// Synchronous EL1t
 	kernel_ventry	0, irq			// IRQ EL1t
 	kernel_ventry	0, fiq_invalid			// FIQ EL1t
 	kernel_ventry	0, error		// Error EL1t
@@ -533,6 +597,147 @@ __bad_stack:
 	bl	bad_mode
 	ASM_BUG()
 	.endm
+
+iso_cxg_dom_code:
+	sub	sp, sp, #16 * 4
+	stp	x0, x1, [sp, #16 * 0]
+	mrs	x1, esr_el1
+	lsr x1, x1, #24
+	cmp	x1, #0x56 // check svc inst
+	bne 2f
+	mrs	x1, esr_el1
+	and	x1, x1, #0xffff
+	cmp x1, #0x0001
+	bne 1f
+	// svc 1
+	// call change ttbr and asid
+	// save other registers
+	stp	x2, x3, [sp, #16 * 1]
+	stp	x4, x5, [sp, #16 * 2]
+	stp	x6, x7, [sp, #16 * 3]
+	// arch_local_irq_save
+	mrs 	x6, DAIF
+	and	w1, w6, #0x80
+	cbz	w1, #8
+	B		#12
+	mov	x1, #0x60
+	msr	DAIFSET, #2
+	nop
+	//	tramp part
+	mov	x4, #0x1008                	// #4104
+	mov	w5, #0x18                  	// #24
+	movk	x4, #0x9986, lsl #16
+	mov	x1, #0x1000                	// #4096
+	movk	x4, #0xffff, lsl #32
+	movk	x1, #0x9986, lsl #16
+	sxtw	x2, w0
+	movk	x1, #0xffff, lsl #32
+	smaddl	x0, w0, w5, x4
+	mov	x3, #0x1010                	// #4112
+	str	x2, [x1]
+	movk	x3, #0x9986, lsl #16
+	movk	x3, #0xffff, lsl #32
+	ldp	x1, x2, [x0]
+	ldr	x0, [x0, #16]
+	//mov	x4, sp
+	mrs	x4, sp_el0
+	str	x4, [x3]
+	msr	ttbr0_el1, x1
+	dsb	ishst
+	tlbi	vmalle1is
+	nop
+	nop
+	dsb	ish
+	isb
+	//mov	sp_el0, x2
+	msr	sp_el0, x2
+	mrs	x4, ttbr1_el1
+	bfi	x4, x0, #48, #16
+	msr	ttbr1_el1, x4
+	isb
+	dsb	ishst
+	tlbi	vmalle1is
+	nop
+	nop
+	dsb	ish
+	isb
+	//	arch_local_irq_restore
+	msr	DAIF, x6
+	nop	
+	//	restore register
+	ldp	x0, x1, [sp, #16 * 0]
+	ldp	x2, x3, [sp, #16 * 1]
+	ldp	x4, x5, [sp, #16 * 2]
+	ldp	x6, x7, [sp, #16 * 3]
+	add	sp, sp, #16 * 4
+	B	iso_cxg_dom_exit
+1:
+	//cmp x1, #0x56000002		// svc 2
+	cmp x1, #0x0002
+	bne 2f
+	// call change ttbr and asid (tramp main part)
+	// save other registers
+	stp	x2, x3, [sp, #16 * 1]
+	stp	x4, x5, [sp, #16 * 2]
+	stp	x6, x7, [sp, #16 * 3]
+	mrs 	x6, DAIF
+	and	w1, w6, #0x80
+	cbz	w1, #8
+	B		#12
+	mov	x1, #0x60
+	msr	DAIFSET, #2
+	nop
+	//	tramp main part
+	mov	x1, #0x1000                	// #4096
+	mov	x0, #0x1008                	// #4104
+	movk	x1, #0x9986, lsl #16
+	movk	x0, #0x9986, lsl #16
+	movk	x1, #0xffff, lsl #32
+	movk	x0, #0xffff, lsl #32
+	str	xzr, [x1]
+	ldp	x1, x2, [x0]
+	ldr	x0, [x0, #16]
+	msr	ttbr0_el1, x1
+	//mov	sp_el0, x2
+	msr	sp_el0, x2
+	mrs	x3, ttbr1_el1
+	bfi	x3, x0, #48, #16
+	msr	ttbr1_el1, x3
+	isb
+	dsb	ishst
+	tlbi	vmalle1is
+	nop
+	nop
+	dsb	ish
+	isb
+	//	arch_local_irq_restore
+	msr	DAIF, x6
+	nop	
+	//	restore stack
+	ldp	x0, x1, [sp, #16 * 0]
+	ldp	x2, x3, [sp, #16 * 1]
+	ldp	x4, x5, [sp, #16 * 2]
+	ldp	x6, x7, [sp, #16 * 3]
+	add	sp, sp, #16 * 4
+	B	iso_cxg_dom_exit
+2:
+	ldp	x0, x1, [sp, #16 * 0]
+	add	sp, sp, #16 * 4
+	b	iso_kernel_ventry_entry
+ENDPROC(iso_cxg_dom_code)
+
+iso_cxg_dom_exit:
+alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+	bne	5f
+	msr	far_el1, x30
+	tramp_alias	x30, tramp_exit_native
+	br	x30
+5:
+	tramp_alias	x30, tramp_exit_compat
+	br	x30
+#endif
+ENDPROC(iso_cxg_dom_exit)
 
 el0_sync_invalid:
 	inv_entry 0, BAD_SYNC
@@ -1030,20 +1235,6 @@ finish_ret_to_user:
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
 #endif
-/*
-	mov x1, sp
-	add x1, x1, 0x108
-	ldr x1, [x1]
-	mov x2, 0xF
-	and x1, x1, x2
-	cmp x1, #PSR_MODE_EL1t
-	b.eq call_exit_1
-	kernel_exit 0
-	b call_exit_2
-call_exit_1:
-	kernel_exit 1
-call_exit_2:
-*/
 	kernel_exit 0
 ENDPROC(ret_to_user)
 
