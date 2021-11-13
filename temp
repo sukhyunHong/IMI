@@ -1,0 +1,202 @@
+cxg_dom function
+
+stp	x29, x30, [sp, #-48]!
+mov	x29, sp
+str	w0, [sp, #44]
+str	x1, [sp, #32]
+str	x2, [sp, #24]
+ldr	x3, [sp, #24]
+ldr	x2, [sp, #32]
+ldr	w1, [sp, #44]
+mov	w0, #0x0                   	// #0
+bl	3000 <tramp>
+ldr	x0, [sp, #24]
+blr	x0
+ldr	x3, [sp, #24]
+ldr	x2, [sp, #32]
+mov	w1, #0x0                   	// #0
+ldr	w0, [sp, #44]
+bl	2000 <tramp_to_main>
+nop
+ldp	x29, x30, [sp], #48
+ret
+
+0000000000003000 <tramp>:
+    3000:	d10103ff 	sub	sp, sp, #0x40
+    3004:	b9001fe0 	str	w0, [sp, #28]
+    3008:	b9001be1 	str	w1, [sp, #24]
+    300c:	f9000be2 	str	x2, [sp, #16]
+    3010:	f90007e3 	str	x3, [sp, #8]
+    3014:	f9400be0 	ldr	x0, [sp, #16]
+    3018:	91002000 	add	x0, x0, #0x8
+    301c:	f9000be0 	str	x0, [sp, #16]
+    3020:	b9801be1 	ldrsw	x1, [sp, #24]
+    3024:	aa0103e0 	mov	x0, x1
+    3028:	d37ff800 	lsl	x0, x0, #1
+    302c:	8b010000 	add	x0, x0, x1
+    3030:	d37df000 	lsl	x0, x0, #3
+    3034:	aa0003e1 	mov	x1, x0
+    3038:	f9400be0 	ldr	x0, [sp, #16]
+    303c:	8b000020 	add	x0, x1, x0
+    3040:	f9400000 	ldr	x0, [x0]
+    3044:	f90013e0 	str	x0, [sp, #32]
+    3048:	b9801be1 	ldrsw	x1, [sp, #24]
+    304c:	aa0103e0 	mov	x0, x1
+    3050:	d37ff800 	lsl	x0, x0, #1
+    3054:	8b010000 	add	x0, x0, x1
+    3058:	d37df000 	lsl	x0, x0, #3
+    305c:	aa0003e1 	mov	x1, x0
+    3060:	f9400be0 	ldr	x0, [sp, #16]
+    3064:	8b000020 	add	x0, x1, x0
+    3068:	f9400400 	ldr	x0, [x0, #8]
+    306c:	f90017e0 	str	x0, [sp, #40]
+    3070:	b9801be1 	ldrsw	x1, [sp, #24]
+    3074:	aa0103e0 	mov	x0, x1
+    3078:	d37ff800 	lsl	x0, x0, #1
+    307c:	8b010000 	add	x0, x0, x1
+    3080:	d37df000 	lsl	x0, x0, #3
+    3084:	aa0003e1 	mov	x1, x0
+    3088:	f9400be0 	ldr	x0, [sp, #16]
+    308c:	8b000020 	add	x0, x1, x0
+    3090:	f9400800 	ldr	x0, [x0, #16]
+    3094:	f9001be0 	str	x0, [sp, #48]
+    3098:	b9801fe1 	ldrsw	x1, [sp, #28]
+    309c:	aa0103e0 	mov	x0, x1
+    30a0:	d37ff800 	lsl	x0, x0, #1
+    30a4:	8b010000 	add	x0, x0, x1
+    30a8:	d37df000 	lsl	x0, x0, #3
+    30ac:	aa0003e1 	mov	x1, x0
+    30b0:	f9400be0 	ldr	x0, [sp, #16]
+    30b4:	8b000020 	add	x0, x1, x0
+    30b8:	91002000 	add	x0, x0, #0x8
+    30bc:	f9001fe0 	str	x0, [sp, #56]
+    30c0:	f9400be0 	ldr	x0, [sp, #16]
+    30c4:	d1002000 	sub	x0, x0, #0x8
+    30c8:	f9000be0 	str	x0, [sp, #16]
+    30cc:	f9401fe0 	ldr	x0, [sp, #56]
+    30d0:	910003e1 	mov	x1, sp
+    30d4:	f9000001 	str	x1, [x0]
+    30d8:	f94017e0 	ldr	x0, [sp, #40]
+    30dc:	d101c000 	sub	x0, x0, #0x70
+    30e0:	f90017e0 	str	x0, [sp, #40]
+    30e4:	f94013e0 	ldr	x0, [sp, #32]
+    30e8:	f94017e1 	ldr	x1, [sp, #40]
+    30ec:	f9401be2 	ldr	x2, [sp, #48]
+    30f0:	f94007e3 	ldr	x3, [sp, #8]
+    30f4:	f9400be4 	ldr	x4, [sp, #16]
+    30f8:	b9401fe5 	ldr	w5, [sp, #28]
+    30fc:	d5182000 	msr	ttbr0_el1, x0
+    3100:	d5033a9f 	dsb	ishst
+    3104:	d508831f 	tlbi	vmalle1is
+    3108:	d503201f 	nop
+    310c:	d503201f 	nop
+    3110:	d5033b9f 	dsb	ish
+    3114:	d5033fdf 	isb
+    3118:	9100003f 	mov	sp, x1
+    311c:	f9002fe3 	str	x3, [sp, #88]
+    3120:	f90033e4 	str	x4, [sp, #96]
+    3124:	b9006fe5 	str	w5, [sp, #108]
+    3128:	d5382024 	mrs	x4, ttbr1_el1
+    312c:	b3503c44 	bfi	x4, x2, #48, #16
+    3130:	d5182024 	msr	ttbr1_el1, x4
+    3134:	d5033fdf 	isb
+    3138:	d5033a9f 	dsb	ishst
+    313c:	d508831f 	tlbi	vmalle1is
+    3140:	d503201f 	nop
+    3144:	d503201f 	nop
+    3148:	d5033b9f 	dsb	ish
+    314c:	d5033fdf 	isb
+    3150:	d503201f 	nop
+    3154:	910103ff 	add	sp, sp, #0x40
+    3158:	d65f03c0 	ret
+    
+    
+    
+    asm volatile (
+"sub	sp, sp, #0x40\r\n"
+"str	w0, [sp, #28]\r\n"
+"str	w1, [sp, #24]\r\n"
+"str	x2, [sp, #16]\r\n"
+"str	x3, [sp, #8]\r\n"
+"ldr	x0, [sp, #16]\r\n"
+"add	x0, x0, #0x8\r\n"
+"str	x0, [sp, #16]\r\n"
+"ldrsw	x1, [sp, #24]\r\n"
+"mov	x0, x1\r\n"
+"lsl	x0, x0, #1\r\n"
+"add	x0, x0, x1\r\n"
+"lsl	x0, x0, #3\r\n"
+"mov	x1, x0\r\n"
+"ldr	x0, [sp, #16]\r\n"
+"add	x0, x1, x0\r\n"
+"ldr	x0, [x0]\r\n"
+"str	x0, [sp, #32]\r\n"
+"ldrsw	x1, [sp, #24]\r\n"
+"mov	x0, x1\r\n"
+"lsl	x0, x0, #1\r\n"
+"add	x0, x0, x1\r\n"
+"lsl	x0, x0, #3\r\n"
+"mov	x1, x0\r\n"
+"ldr	x0, [sp, #16]\r\n"
+"add	x0, x1, x0\r\n"
+"ldr	x0, [x0, #8]\r\n"
+"str	x0, [sp, #40]\r\n"
+"ldrsw	x1, [sp, #24]\r\n"
+"mov	x0, x1\r\n"
+"lsl	x0, x0, #1\r\n"
+"add	x0, x0, x1\r\n"
+"lsl	x0, x0, #3\r\n"
+"mov	x1, x0\r\n"
+"ldr	x0, [sp, #16]\r\n"
+"add	x0, x1, x0\r\n"
+"ldr	x0, [x0, #16]\r\n"
+"str	x0, [sp, #48]\r\n"
+"ldrsw	x1, [sp, #28]\r\n"
+"mov	x0, x1\r\n"
+"lsl	x0, x0, #1\r\n"
+"add	x0, x0, x1\r\n"
+"lsl	x0, x0, #3\r\n"
+"mov	x1, x0\r\n"
+"ldr	x0, [sp, #16]\r\n"
+"add	x0, x1, x0\r\n"
+"add	x0, x0, #0x8\r\n"
+"str	x0, [sp, #56]\r\n"
+"ldr	x0, [sp, #16]\r\n"
+"sub	x0, x0, #0x8\r\n"
+"str	x0, [sp, #16]\r\n"
+"ldr	x0, [sp, #56]\r\n"
+"mov	x1, sp\r\n"
+"str	x1, [x0]\r\n"
+"ldr	x0, [sp, #40]\r\n"
+"sub	x0, x0, #0x70\r\n"
+"str	x0, [sp, #40]\r\n"
+"ldr	x0, [sp, #32]\r\n"
+"ldr	x1, [sp, #40]\r\n"
+"ldr	x2, [sp, #48]\r\n"
+"ldr	x3, [sp, #8]\r\n"
+"ldr	x4, [sp, #16]\r\n"
+"ldr	w5, [sp, #28]\r\n"
+"msr	ttbr0_el1, x0\r\n"
+"dsb	ishst\r\n"
+"tlbi	vmalle1is\r\n"
+"nop\r\n"
+"nop\r\n"
+"dsb	ish\r\n"
+"isb\r\n"
+"mov	sp, x1\r\n"
+"str	x3, [sp, #88]\r\n"
+"str	x4, [sp, #96]\r\n"
+"str	w5, [sp, #108]\r\n"
+"mrs	x4, ttbr1_el1\r\n"
+"bfi	x4, x2, #48, #16\r\n"
+"msr	ttbr1_el1, x4\r\n"
+"isb\r\n"
+"dsb	ishst\r\n"
+"tlbi	vmalle1is\r\n"
+"nop\r\n"
+"nop\r\n"
+"dsb	ish\r\n"
+"isb\r\n"
+"nop\r\n"
+"add	sp, sp, #0x40\r\n"
+"ret\r\n");

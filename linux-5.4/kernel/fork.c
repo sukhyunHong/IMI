@@ -3430,15 +3430,16 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	
 	// domain metadata 저장.
 	//((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)tsk->domain_mm->pgd;
-	((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
-	((dom_data*)current->iso_meta_data)[1].asid = iso_alloc_new_asid(domain_mm);
-	printk("new domain's asid: %lx\n", ((dom_data*)current->iso_meta_data)[1].asid);
+	((dom_data*)tsk->iso_meta_data)[dom_num].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
+	((dom_data*)current->iso_meta_data)[dom_num].asid = iso_alloc_new_asid(domain_mm); // This ASID is kernel's asid...
+	//((dom_data*)current->iso_meta_data)[dom_num].asid = iso_alloc_new_asid(domain_mm) | 0x1; // This ASID is trampoline's asid...
+	printk("new domain's asid: %lx\n", ((dom_data*)current->iso_meta_data)[dom_num].asid);
 
 	// systemcall이 아닌 trampoline page에서 바로 ttbr1_el1의 asid를 바로 교체할 것이라서 tramp_ret부분꺼 가져옴.
 	//((dom_data*)current->iso_meta_data)[1].asid -= 0x1 << 12;
 	//((dom_data*)current->iso_meta_data)[1].asid |= 0x1;
 
-	((dom_data*)tsk->iso_meta_data)[1].sp_val = *stack_addr;
+	((dom_data*)tsk->iso_meta_data)[dom_num].sp_val = *stack_addr;
 	
     domain_mm->hiwater_rss = get_mm_rss(domain_mm);
     domain_mm->hiwater_vm = domain_mm->total_vm;
@@ -3453,9 +3454,9 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
     if(tsk->domain_mm){
         dml->next = current->domain_mm;
         current->domain_mm = dml;
-    }
-    else 
+    } else {
         tsk->domain_mm = dml;
+	}
         
 	return domain_mm;
 
@@ -3469,30 +3470,36 @@ fail_nomem:
 	return NULL;
 }
 
+uint64_t iso_create_domain_wrapper(unsigned long *stack_addr) {
+	struct mm_struct * domain_mm;
+
+    domain_mm = make_domain_test(stack_addr, current->dom_cnt+1);
+
+	if(domain_mm){
+		current->dom_cnt++;
+        printk("domain %ld created\n", current->dom_cnt);
+    	//*ttbr0 = (uint64_t*)((uint64_t)phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
+        return current->dom_cnt;
+    }
+    return -1;
+}
+
+/*
+ */
 SYSCALL_DEFINE2(iso_create_domain, uint64_t **, ttbr0, unsigned long *, stack_addr)
 {
-    int dom_num = 1;
-    struct mm_struct * domain_mm;
     /*
     *ttbr0 = (uint64_t *)pgd_alloc(NULL);
     memset(*ttbr0, 0, PGD_SIZE);
     *ttbr0 = (uint64_t *)virt_to_phys(*ttbr0);
     *ttbr0 = (uint64_t *)phys_to_ttbr(*ttbr0);
     */
-    domain_mm = make_domain_test(stack_addr, dom_num);
-
-	if(domain_mm){
-        printk("domain %d created\n",dom_num);
-    	*ttbr0 = (uint64_t*)((uint64_t)phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
-        return 0;
-    }
-    return -1;
+    return iso_create_domain_wrapper(stack_addr);
 }
 
-
-SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
+unsigned long iso_assign_memory_wrapper(int dom_num, uint64_t addr, uint64_t size)
 {
-    struct domain_mm_list *dml = current->domain_mm;
+	struct domain_mm_list *dml = current->domain_mm;
     struct mm_struct *d_mm;
 
     while(dml != NULL){
@@ -3514,25 +3521,31 @@ SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
     return iso_copy_address(d_mm, current->mm, addr, size);
 }
 
+SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
+{
+    return iso_assign_memory_wrapper(dom_num, addr, size);
+}
 
-SYSCALL_DEFINE0(iso_init)
+
+SYSCALL_DEFINE2(iso_init, uint64_t, main_fn_addr, uint64_t, main_fn_size)
 {
 	unsigned long size = 2*1024*1024;
 	unsigned long addr = 0x0000ffff99861000;
+	unsigned long ret_mmap;
 
 	printk("start iso_init\n");
 
-	current->is_iso = 1;
-
-
-	addr = ksys_mmap_pgoff(addr, size, 
+	// mmap iso module's memory.
+	ret_mmap = ksys_mmap_pgoff(addr, size, 
 				PROT_READ | PROT_WRITE, 
 				MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK | MAP_FIXED, -1, 0);
-	printk("iso_init addr: %lx\n", addr);
-	if(unlikely(addr == -1) || unlikely(addr == 0)) {
+	if(unlikely(ret_mmap != addr)) {
 		printk("iso_init error!\n");
-		return 0;
+		return -1;
 	}
+	current->is_iso = 1;
+	current->dom_cnt = 0;
+
 	//current->iso_meta_data = (iso_meta_struct*)addr;
 	current->cur_dom_num = (unsigned long*)addr;
 	current->iso_meta_data = (dom_data*)(addr+8);
@@ -3541,11 +3554,40 @@ SYSCALL_DEFINE0(iso_init)
 	
 	*current->cur_dom_num = 0;
 	current->iso_meta_data[0].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(current->mm->pgd)) & 0x0000FFFFFFFFFFFF);
-	current->iso_meta_data[0].asid = ASID(current->mm);
+	current->iso_meta_data[0].asid = ASID(current->mm); // This ASID is kernel's asid...
+	//current->iso_meta_data[0].asid = ASID(current->mm) | 0x1; // This ASID is trampoline's asid...
+
 
 	printk("ttbr: %px\n", current->iso_meta_data[0].ttbr);
 
-	return addr;
+	// Make main domain
+	unsigned long stack_addr;
+	if(iso_create_domain_wrapper(&stack_addr) == -1) {
+		printk("In iso_init, create one domain failed\n");
+		return -1;
+	}
+
+	// assign main function memory into one domain...
+	if(iso_assign_memory_wrapper(1, main_fn_addr, main_fn_size) != 0) {
+		printk("In iso_init, assign main function into one domain failed\n");
+		return -1;
+	}
+
+	// cxg_dom and other memory assign called in user application.
+
+	// change asid and ttbr...
+	// 난 근데 stack을 기존꺼 그대로 쓰고싶은데 이건 어떻게 해야할까?... (SP_el0를 변경하지 말아보자...)
+	volatile unsigned int tmp;
+	asm ( "msr	ttbr0_el1, %1\r\n"
+			"mrs	%0, ttbr1_el1\r\n"
+			"bfi	%0, %2, #48, #16\r\n"
+			"msr	ttbr1_el1, %0\r\n"
+			"isb"
+			: "=r" (tmp)
+			: "r" (current->iso_meta_data[1].ttbr), "r" (current->iso_meta_data[1].asid)
+	);
+
+	return 0;
 }
 
 

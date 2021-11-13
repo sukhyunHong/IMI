@@ -1,0 +1,3 @@
+thbreak EL2:0x80080000
+set os physical-address 0x80080000
+add-symbol-file "/home/ccma750/IMI/linux-5.4/vmlinux"

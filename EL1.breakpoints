@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<exported_breakpoints>
+	<breakpoints order="ALPHA">
+		<breakpoint ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="SOURCEPOSITION">
+			<master_location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082000" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="469"/>
+			<location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082000" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="469"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el1_sync_invalid" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082EEC" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="560" function="el1_sync_invalid"/>
+			<location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082EEC" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="560" function="el1_sync_invalid"/>
+			<location index="1" enabled="true" version="2" address="EL1N:0xFFFF800010C0E854" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" line="560" function="el1_sync_invalid"/>
+			<location index="2" enabled="true" version="2" address="EL1N:0xFFFF800010C170F8" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" line="560" function="el1_sync_invalid"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el1_irq_invalid" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082F74" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="564" function="el1_irq_invalid"/>
+			<location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082F74" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="564" function="el1_irq_invalid"/>
+			<location index="1" enabled="true" version="2" address="EL1N:0xFFFF800010C0E858" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" line="564" function="el1_irq_invalid"/>
+			<location index="2" enabled="true" version="2" address="EL1N:0xFFFF800010C170FC" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" line="564" function="el1_irq_invalid"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el1_fiq_invalid" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082FFC" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="568" function="el1_fiq_invalid"/>
+			<location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010082FFC" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="568" function="el1_fiq_invalid"/>
+			<location index="1" enabled="true" version="2" address="EL1N:0xFFFF800010C0E85C" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" line="568" function="el1_fiq_invalid"/>
+			<location index="2" enabled="true" version="2" address="EL1N:0xFFFF800010C12A6C" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" line="568" function="el1_fiq_invalid"/>
+			<location index="3" enabled="true" version="2" address="EL1N:0xFFFF800010C17100" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" line="568" function="el1_fiq_invalid"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el1_error_invalid" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010083084" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="572" function="el1_error_invalid"/>
+			<location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010083084" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="572" function="el1_error_invalid"/>
+			<location index="1" enabled="true" version="2" address="EL1N:0xFFFF800010C0E860" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" line="572" function="el1_error_invalid"/>
+			<location index="2" enabled="true" version="2" address="EL1N:0xFFFF800010C17104" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" line="572" function="el1_error_invalid"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el1_error" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010083E4C" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="951" function="el1_error"/>
+			<location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010083E4C" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="951" function="el1_error"/>
+			<location index="1" enabled="true" version="2" address="EL1N:0xFFFF800010C1297C" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" line="951"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el1_irq" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="false" version="2" address="EL1N:0xFFFF800010083400" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="655" function="el1_irq"/>
+			<location index="0" enabled="false" version="2" address="EL1N:0xFFFF800010083400" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="655" function="el1_irq"/>
+			<location index="1" enabled="false" version="2" address="EL1N:0xFFFF800010C12948" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" line="655"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el0_sync" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="false" version="2" address="EL1N:0xFFFF800010083580" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="716" function="el0_sync"/>
+			<location index="0" enabled="false" version="2" address="EL1N:0xFFFF800010083580" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="716" function="el0_sync"/>
+		</breakpoint>
+		<breakpoint location_function_expression="el1_sync" ignorecount="0" threadenabled="no" core_list="" continue="no" verboseBreakpoints="yes" kind="FUNCTION">
+			<master_location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010083140" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="580" function="el1_sync"/>
+			<location index="0" enabled="true" version="2" address="EL1N:0xFFFF800010083140" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/entry.S" line="580" function="el1_sync"/>
+			<location index="1" enabled="true" version="2" address="EL1N:0xFFFF800010C0E800" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hyp-stub.S" line="580" function="el1_sync"/>
+			<location index="2" enabled="true" version="2" address="EL1N:0xFFFF800010C12800" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kvm/hyp/hyp-entry.S" line="580"/>
+			<location index="3" enabled="true" version="2" address="EL1N:0xFFFF800010C170E0" debugFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" hostFile="/home/ccma750/IMI/linux-5.4/arch/arm64/kernel/hibernate-asm.S" line="580" function="el1_sync"/>
+		</breakpoint>
+	</breakpoints>
+	<watchpoints>
+	</watchpoints>
+</exported_breakpoints>
