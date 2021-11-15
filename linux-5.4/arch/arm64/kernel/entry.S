@@ -530,17 +530,17 @@ alternative_endif
 
 	.align	11
 ENTRY(vectors)
-	iso_kernel_ventry	0, sync_iso			// Synchronous EL1t
-	kernel_ventry	0, irq			// IRQ EL1t
-	kernel_ventry	0, fiq_invalid			// FIQ EL1t
-	kernel_ventry	0, error		// Error EL1t
+	kernel_ventry	1, sync_invalid			// Synchronous EL1t
+	kernel_ventry	1, irq_invalid			// IRQ EL1t
+	kernel_ventry	1, fiq_invalid			// FIQ EL1t
+	kernel_ventry	1, error_invalid		// Error EL1t
 
 	kernel_ventry	1, sync				// Synchronous EL1h
 	kernel_ventry	1, irq				// IRQ EL1h
 	kernel_ventry	1, fiq_invalid			// FIQ EL1h
 	kernel_ventry	1, error			// Error EL1h
 
-	kernel_ventry	0, sync				// Synchronous 64-bit EL0
+	iso_kernel_ventry	0, sync				// Synchronous 64-bit EL0
 	kernel_ventry	0, irq				// IRQ 64-bit EL0
 	kernel_ventry	0, fiq_invalid			// FIQ 64-bit EL0
 	kernel_ventry	0, error			// Error 64-bit EL0
@@ -643,23 +643,11 @@ iso_cxg_dom_code:
 	mrs	x4, sp_el0
 	str	x4, [x3]
 	msr	ttbr0_el1, x1
-	dsb	ishst
-	tlbi	vmalle1is
-	nop
-	nop
-	dsb	ish
-	isb
 	//mov	sp_el0, x2
 	msr	sp_el0, x2
 	mrs	x4, ttbr1_el1
 	bfi	x4, x0, #48, #16
 	msr	ttbr1_el1, x4
-	isb
-	dsb	ishst
-	tlbi	vmalle1is
-	nop
-	nop
-	dsb	ish
 	isb
 	//	arch_local_irq_restore
 	msr	DAIF, x6
@@ -703,12 +691,6 @@ iso_cxg_dom_code:
 	mrs	x3, ttbr1_el1
 	bfi	x3, x0, #48, #16
 	msr	ttbr1_el1, x3
-	isb
-	dsb	ishst
-	tlbi	vmalle1is
-	nop
-	nop
-	dsb	ish
 	isb
 	//	arch_local_irq_restore
 	msr	DAIF, x6
@@ -1332,12 +1314,7 @@ alternative_else_nop_endif
 
 	.align	11
 ENTRY(tramp_vectors)
-	tramp_ventry
-	tramp_ventry
-	tramp_ventry
-	tramp_ventry
-
-	.space	0x200
+	.space	0x400
 
 	tramp_ventry
 	tramp_ventry
@@ -1357,28 +1334,6 @@ END(tramp_exit_native)
 ENTRY(tramp_exit_compat)
 	tramp_exit	32
 END(tramp_exit_compat)
-
-// change domain code
-ENTRY(tramp_cxg_dom)
-	.align 7
-	// r8 to r15 is callee saved registers.
-	// backup x1 (domain's start function) into x9.
-	mov x9, x1
-	// backup lr into r8.
-	mov	x8, lr
-	// goto tramp
-	mov	x3, #0xffff000000000000
-	blr	x3
-	// goto domain's start function
-	blr x9
-	// goto tramp to main
-	mov x3, #0x0200
-	movk x3, #0xffff, lsl #48
-	blr x3
-	// restore lr from x8.
-	mov lr, x8
-	ret
-END(tramp_cxg_dom)
 
 	.ltorg
 	.popsection				// .entry.tramp.text

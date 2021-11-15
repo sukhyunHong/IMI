@@ -1275,6 +1275,7 @@ struct task_struct {
     struct  domain_context      *saved_domain_context;
 	
 	// Both kernel and app can access...
+	unsigned long			dom_cnt;
 	unsigned long			*cur_dom_num;
 	dom_data				*iso_meta_data;
 

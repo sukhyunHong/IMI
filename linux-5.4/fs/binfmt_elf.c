@@ -408,7 +408,7 @@ static unsigned long total_mapping_size(const struct elf_phdr *cmds, int nr)
  * load_elf_phdrs() - load ELF program headers
  * @elf_ex:   ELF header of the binary whose program headers should be loaded
  * @elf_file: the opened ELF binary file
- *
+ *saved_domain_context
  * Loads ELF program headers from the binary file elf_file, which has the ELF
  * header pointed to by elf_ex, into a newly allocated array. The caller is
  * responsible for freeing the allocated data. Returns an ERR_PTR upon failure.
@@ -1177,7 +1177,7 @@ out_free_interp:
     }
 
     if( iso_is_true){
-        iso_start_thread(regs, elf_entry, bprm->p);
+        start_thread(regs, elf_entry, bprm->p);
         current->saved_domain_context = kmalloc(sizeof(struct domain_context),GFP_KERNEL);
     }
     else 
