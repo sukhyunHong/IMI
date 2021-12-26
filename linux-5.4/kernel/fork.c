@@ -101,6 +101,7 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/fixmap.h>
 
 #include <trace/events/sched.h>
 
@@ -109,6 +110,7 @@
 
 #include <linux/mprotect.h>
 #include <asm/iso_module.h>
+#include <asm/mmu.h>
 
 /*
  * Minimum number of threads to boot the kernel
@@ -3431,8 +3433,7 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	// domain metadata 저장.
 	//((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)tsk->domain_mm->pgd;
 	((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
-	((dom_data*)current->iso_meta_data)[1].asid = iso_alloc_new_asid(domain_mm);
-	printk("new domain's asid: %lx\n", ((dom_data*)current->iso_meta_data)[1].asid);
+	((dom_data*)current->iso_meta_data)[1].asid = iso_alloc_new_asid(domain_mm) | 0x1;
 
 	// systemcall이 아닌 trampoline page에서 바로 ttbr1_el1의 asid를 바로 교체할 것이라서 tramp_ret부분꺼 가져옴.
 	//((dom_data*)current->iso_meta_data)[1].asid -= 0x1 << 12;
@@ -3517,33 +3518,31 @@ SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
 
 SYSCALL_DEFINE0(iso_init)
 {
-	unsigned long size = 2*1024*1024;
-	unsigned long addr = 0x0000ffff99861000;
+	unsigned long size = 4096; // 1-page.
+	void* addr = ISO_META_VALIAS;;
+	long cntkctl;
 
-	printk("start iso_init\n");
+	//printk("start iso_init\n");
 
 	current->is_iso = 1;
 
+	memset(addr, 0, size);
 
-	addr = ksys_mmap_pgoff(addr, size, 
-				PROT_READ | PROT_WRITE, 
-				MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK | MAP_FIXED, -1, 0);
-	printk("iso_init addr: %lx\n", addr);
-	if(unlikely(addr == -1) || unlikely(addr == 0)) {
-		printk("iso_init error!\n");
-		return 0;
-	}
-	//current->iso_meta_data = (iso_meta_struct*)addr;
 	current->cur_dom_num = (unsigned long*)addr;
 	current->iso_meta_data = (dom_data*)(addr+8);
-	//*(int*)addr = 0; // On-demand paging을 해결하기 위해서...
-	//((dom_data*)current->iso_meta_data)[0].ttbr = (unsigned long*)current->mm->pgd;
 	
 	*current->cur_dom_num = 0;
 	current->iso_meta_data[0].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(current->mm->pgd)) & 0x0000FFFFFFFFFFFF);
-	current->iso_meta_data[0].asid = ASID(current->mm);
+	current->iso_meta_data[0].asid = ASID(current->mm) | 1;
 
-	printk("ttbr: %px\n", current->iso_meta_data[0].ttbr);
+	//printk("ttbr: %px\n", current->iso_meta_data[0].ttbr);
+
+	// to read CNTPCT_EL0 register in exception level 0, 
+	// turn on CNTKCTL_EL1.EL0PCTEN.
+	asm volatile ("mrs %0, CNTKCTL_EL1\r\n"
+		"orr %0, %0, #1\r\n"
+		"msr CNTKCTL_EL1, %0\r\n"
+		:"=r" (cntkctl));
 
 	return addr;
 }

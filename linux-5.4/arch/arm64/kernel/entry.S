@@ -118,70 +118,6 @@ alternative_else_nop_endif
 	b	el\()\el\()_\label
 	.endm
 
-
-	.macro iso_kernel_ventry, el, label, regsize = 64
-	.align 7
-	B	iso_cxg_dom_code
-iso_kernel_ventry_entry:
-#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-alternative_if ARM64_UNMAP_KERNEL_AT_EL0
-	.if	\el == 0
-	.if	\regsize == 64
-	mrs	x30, tpidrro_el0
-	msr	tpidrro_el0, xzr
-	.else
-	mov	x30, xzr
-	.endif
-	.endif
-alternative_else_nop_endif
-#endif
-
-	sub	sp, sp, #S_FRAME_SIZE
-#ifdef CONFIG_VMAP_STACK
-	/*
-	 * Test whether the SP has overflowed, without corrupting a GPR.
-	 * Task and IRQ stacks are aligned to (1 << THREAD_SHIFT).
-	 */
-	add	sp, sp, x0			// sp' = sp + x0
-	sub	x0, sp, x0			// x0' = sp' - x0 = (sp + x0) - x0 = sp
-	tbnz	x0, #THREAD_SHIFT, 0f
-	sub	x0, sp, x0			// x0'' = sp' - x0' = (sp + x0) - sp = x0
-	sub	sp, sp, x0			// sp'' = sp' - x0 = (sp + x0) - x0 = sp
-	b	el\()\el\()_\label
-
-0:
-	/*
-	 * Either we've just detected an overflow, or we've taken an exception
-	 * while on the overflow stack. Either way, we won't return to
-	 * userspace, and can clobber EL0 registers to free up GPRs.
-	 */
-
-	/* Stash the original SP (minus S_FRAME_SIZE) in tpidr_el0. */
-	msr	tpidr_el0, x0
-
-	/* Recover the original x0 value and stash it in tpidrro_el0 */
-	sub	x0, sp, x0
-	msr	tpidrro_el0, x0
-
-	/* Switch to the overflow stack */
-	adr_this_cpu sp, overflow_stack + OVERFLOW_STACK_SIZE, x0
-
-	/*
-	 * Check whether we were already on the overflow stack. This may happen
-	 * after panic() re-enables interrupts.
-	 */
-	mrs	x0, tpidr_el0			// sp of interrupted context
-	sub	x0, sp, x0			// delta with top of overflow stack
-	tst	x0, #~(OVERFLOW_STACK_SIZE - 1)	// within range?
-	b.ne	__bad_stack			// no? -> bad stack pointer
-
-	/* We were already on the overflow stack. Restore sp/x0 and carry on. */
-	sub	sp, sp, x0
-	mrs	x0, tpidrro_el0
-#endif
-	b	el\()\el\()_\label
-	.endm
-
 	.macro tramp_alias, dst, sym
 	mov_q	\dst, TRAMP_VALIAS
 	add	\dst, \dst, #(\sym - .entry.tramp.text)
@@ -540,7 +476,7 @@ ENTRY(vectors)
 	kernel_ventry	1, fiq_invalid			// FIQ EL1h
 	kernel_ventry	1, error			// Error EL1h
 
-	iso_kernel_ventry	0, sync				// Synchronous 64-bit EL0
+	kernel_ventry	0, sync				// Synchronous 64-bit EL0
 	kernel_ventry	0, irq				// IRQ 64-bit EL0
 	kernel_ventry	0, fiq_invalid			// FIQ 64-bit EL0
 	kernel_ventry	0, error			// Error 64-bit EL0
@@ -597,129 +533,6 @@ __bad_stack:
 	bl	bad_mode
 	ASM_BUG()
 	.endm
-
-iso_cxg_dom_code:
-	sub	sp, sp, #16 * 4
-	stp	x0, x1, [sp, #16 * 0]
-	mrs	x1, esr_el1
-	lsr x1, x1, #24
-	cmp	x1, #0x56 // check svc inst
-	bne 2f
-	mrs	x1, esr_el1
-	and	x1, x1, #0xffff
-	cmp x1, #0x0001
-	bne 1f
-	// svc 1
-	// call change ttbr and asid
-	// save other registers
-	stp	x2, x3, [sp, #16 * 1]
-	stp	x4, x5, [sp, #16 * 2]
-	stp	x6, x7, [sp, #16 * 3]
-	// arch_local_irq_save
-	mrs 	x6, DAIF
-	and	w1, w6, #0x80
-	cbz	w1, #8
-	B		#12
-	mov	x1, #0x60
-	msr	DAIFSET, #2
-	nop
-	//	tramp part
-	mov	x4, #0x1008                	// #4104
-	mov	w5, #0x18                  	// #24
-	movk	x4, #0x9986, lsl #16
-	mov	x1, #0x1000                	// #4096
-	movk	x4, #0xffff, lsl #32
-	movk	x1, #0x9986, lsl #16
-	sxtw	x2, w0
-	movk	x1, #0xffff, lsl #32
-	smaddl	x0, w0, w5, x4
-	mov	x3, #0x1010                	// #4112
-	str	x2, [x1]
-	movk	x3, #0x9986, lsl #16
-	movk	x3, #0xffff, lsl #32
-	ldp	x1, x2, [x0]
-	ldr	x0, [x0, #16]
-	//mov	x4, sp
-	mrs	x4, sp_el0
-	str	x4, [x3]
-	msr	ttbr0_el1, x1
-	//mov	sp_el0, x2
-	msr	sp_el0, x2
-	mrs	x4, ttbr1_el1
-	bfi	x4, x0, #48, #16
-	msr	ttbr1_el1, x4
-	isb
-	//	arch_local_irq_restore
-	msr	DAIF, x6
-	nop	
-	//	restore register
-	ldp	x0, x1, [sp, #16 * 0]
-	ldp	x2, x3, [sp, #16 * 1]
-	ldp	x4, x5, [sp, #16 * 2]
-	ldp	x6, x7, [sp, #16 * 3]
-	add	sp, sp, #16 * 4
-	B	iso_cxg_dom_exit
-1:
-	//cmp x1, #0x56000002		// svc 2
-	cmp x1, #0x0002
-	bne 2f
-	// call change ttbr and asid (tramp main part)
-	// save other registers
-	stp	x2, x3, [sp, #16 * 1]
-	stp	x4, x5, [sp, #16 * 2]
-	stp	x6, x7, [sp, #16 * 3]
-	mrs 	x6, DAIF
-	and	w1, w6, #0x80
-	cbz	w1, #8
-	B		#12
-	mov	x1, #0x60
-	msr	DAIFSET, #2
-	nop
-	//	tramp main part
-	mov	x1, #0x1000                	// #4096
-	mov	x0, #0x1008                	// #4104
-	movk	x1, #0x9986, lsl #16
-	movk	x0, #0x9986, lsl #16
-	movk	x1, #0xffff, lsl #32
-	movk	x0, #0xffff, lsl #32
-	str	xzr, [x1]
-	ldp	x1, x2, [x0]
-	ldr	x0, [x0, #16]
-	msr	ttbr0_el1, x1
-	//mov	sp_el0, x2
-	msr	sp_el0, x2
-	mrs	x3, ttbr1_el1
-	bfi	x3, x0, #48, #16
-	msr	ttbr1_el1, x3
-	isb
-	//	arch_local_irq_restore
-	msr	DAIF, x6
-	nop	
-	//	restore stack
-	ldp	x0, x1, [sp, #16 * 0]
-	ldp	x2, x3, [sp, #16 * 1]
-	ldp	x4, x5, [sp, #16 * 2]
-	ldp	x6, x7, [sp, #16 * 3]
-	add	sp, sp, #16 * 4
-	B	iso_cxg_dom_exit
-2:
-	ldp	x0, x1, [sp, #16 * 0]
-	add	sp, sp, #16 * 4
-	b	iso_kernel_ventry_entry
-ENDPROC(iso_cxg_dom_code)
-
-iso_cxg_dom_exit:
-alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
-#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	bne	5f
-	msr	far_el1, x30
-	tramp_alias	x30, tramp_exit_native
-	br	x30
-5:
-	tramp_alias	x30, tramp_exit_compat
-	br	x30
-#endif
-ENDPROC(iso_cxg_dom_exit)
 
 el0_sync_invalid:
 	inv_entry 0, BAD_SYNC
@@ -1237,6 +1050,124 @@ ENDPROC(el0_svc)
 /*
  * Exception vectors trampoline.
  */
+
+	.ltorg
+	.pushsection ".iso_change_code.text", "ax"
+	.align PAGE_SHIFT
+
+iso_cxg_dom_code:
+	msr	tpidrro_el0, x19					// backup x19(function address) into tpidrro_el0
+	mrs	x19, esr_el1
+	lsr x19, x19, #24
+	cmp	x19, #0x56 // check svc inst
+	bne	2f
+	mrs	x19, esr_el1
+	and	x19, x19, #0xffff
+	cmp x19, #0x0001
+	bne 1f
+
+	// svc1
+	// setup sp_el1
+	// core번호로 인한 상대위치 계산.
+	/*
+	mrs	x19, MPIDR_EL1	// 이 register에 cluster / core 에 대한게 있는듯. 하지만 rpi4는 1cluster니까 그냥 해보자...
+	mov	x20, #32
+	add x19, x19, #1			// 0번 core부터 시작하니까 한칸 건너뛰기 위해서...
+	mul x19, x19, x20			// 4개 register 저장공간 확보
+	*/
+
+	// arch_local_irq_save (interrupt disable)
+	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
+	mrs x20, DAIF
+	and	w21, w20, #0x80
+	cbnz	w21,	#8
+	msr	DAIFSET, #2
+	nop
+
+	// x19: core 위치, x20: DAIF
+	mov_q	x21, ISO_CODE_VALIAS
+	sub	x21, x21, #4096	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
+	add	x21, x21, #8		// domain page의 시작부분에는 domain count가 들어가 있고 그 다음부터 domain struct의 배열임.
+
+	add x21, x21, #8		// domain 0's sp_el0 부분.
+	mrs	x22, sp_el0
+	str x22, [x21]
+	sub x21, x21, #8		// 되돌리기...
+
+	mov x22, #0x18		// domain마다 24bytes만큼 자료할당중. (나중에 core별로 따로 가지도록 설정해야 함.)
+	// x21 = x21 + w0 * w22
+	smaddl	x21, w0, w22, x21	// x7 = x5 + x4 * x6 = domain_data_top + domain_num * domain_struct_size = ttbr0_el1 위치.
+
+	// (ttbr0_el1, sp_el0, asid 순서로 구성됨.)
+	ldp	x22, x23, [x21]
+	ldr	x24, [x21, #16]
+
+	// special registers 수정.
+	msr	ttbr0_el1, x22
+	msr	sp_el0, x23
+	mrs	x22, ttbr1_el1
+	bfi	x22, x24, #48, #16
+	msr	ttbr1_el1, x22
+	isb
+
+	msr	DAIF, x20				// arch_local_irq_restore (enable interrupt)
+	nop	
+	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
+	eret	// exit from SVC #1
+1:
+	//cmp x5, #0x56000002		// svc 2
+	cmp x19, #0x0002
+	bne 2f
+
+	// svc2
+	// setup sp_el1
+	// core번호로 인한 상대위치 계산.
+	/*
+	mrs	x19, MPIDR_EL1	// 이 register에 cluster / core 에 대한게 있는듯. 하지만 rpi4는 1cluster니까 그냥 해보자...
+	mov	x20, #32
+	add x19, x19, #1			// 0번 core부터 시작하니까 한칸 건너뛰기 위해서...
+	mul x19, x19, x20			// 4개 register 저장공간 확보
+	*/
+
+	// arch_local_irq_save (interrupt disable)
+	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
+	mrs x20, DAIF
+	and	w21, w20, #0x80
+	cbnz	w21,	#8
+	msr	DAIFSET, #2
+	nop
+
+	// x19: core 위치, x20: DAIF
+	mov_q	x21, ISO_CODE_VALIAS
+	sub	x21, x21, #4096	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
+	add	x21, x21, #8		// domain page의 시작부분에는 domain count가 들어가 있고 그 다음부터 domain struct의 배열임.
+
+	// (ttbr0_el1, sp_el0, asid 순서로 구성됨.)
+	ldp	x22, x23, [x21]
+	ldr	x24, [x21, #16]
+
+	// special registers 수정.
+	msr	ttbr0_el1, x22
+	msr	sp_el0, x23
+	mrs	x22, ttbr1_el1
+	bfi	x22, x24, #48, #16
+	msr	ttbr1_el1, x22
+	isb
+
+	msr	DAIF, x20				// arch_local_irq_restore (enable interrupt)
+	nop	
+	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
+	eret	// exit from SVC #1
+
+2:	// not svc 1 and 2.
+	mrs	x19, tpidrro_el0			// restore x5 from tpidrro_el0
+	b	iso_kernel_ventry_entry
+
+ENDPROC(iso_cxg_dom_code)
+
+	.ltorg
+	.popsection				// .iso_change_code.text
+
 	.pushsection ".entry.tramp.text", "ax"
 
 	.macro tramp_map_kernel, tmp
@@ -1301,6 +1232,39 @@ alternative_else_nop_endif
 	ret
 	.endm
 
+	.macro iso_tramp_ventry, regsize = 64
+	.align	7
+1:
+	B	iso_cxg_dom_code
+	iso_kernel_ventry_entry:
+	.if	\regsize == 64
+	msr	tpidrro_el0, x30	// Restored in kernel_ventry
+	.endif
+	/*
+	 * Defend against branch aliasing attacks by pushing a dummy
+	 * entry onto the return stack and using a RET instruction to
+	 * enter the full-fat kernel vectors.
+	 */
+	bl	2f
+	b	.
+2:
+	tramp_map_kernel	x30
+#ifdef CONFIG_RANDOMIZE_BASE
+	adr	x30, tramp_vectors + PAGE_SIZE
+alternative_insn isb, nop, ARM64_WORKAROUND_QCOM_FALKOR_E1003
+	ldr	x30, [x30]
+#else
+	ldr	x30, =vectors
+#endif
+alternative_if_not ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM
+	prfm	plil1strm, [x30, #(1b - tramp_vectors)]
+alternative_else_nop_endif
+	msr	vbar_el1, x30
+	add	x30, x30, #(1b - tramp_vectors)
+	isb
+	ret
+	.endm
+
 	.macro tramp_exit, regsize = 64
 	adr	x30, tramp_vectors
 	msr	vbar_el1, x30
@@ -1316,7 +1280,7 @@ alternative_else_nop_endif
 ENTRY(tramp_vectors)
 	.space	0x400
 
-	tramp_ventry
+	iso_tramp_ventry
 	tramp_ventry
 	tramp_ventry
 	tramp_ventry

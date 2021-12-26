@@ -60,10 +60,14 @@ jiffies = jiffies_64;
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 #define TRAMP_TEXT					\
 	. = ALIGN(PAGE_SIZE);				\
+	__entry_iso_change_code_start = .;			\
+	*(.iso_change_code.text)				\
+	. = ALIGN(PAGE_SIZE);				\
+	__entry_iso_change_code_end = .;	\
 	__entry_tramp_text_start = .;			\
 	*(.entry.tramp.text)				\
 	. = ALIGN(PAGE_SIZE);				\
-	__entry_tramp_text_end = .;
+	__entry_tramp_text_end = .;			
 #else
 #define TRAMP_TEXT
 #endif
@@ -270,6 +274,8 @@ ASSERT(__hibernate_exit_text_end - (__hibernate_exit_text_start & ~(SZ_4K - 1))
 #endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 ASSERT((__entry_tramp_text_end - __entry_tramp_text_start) == PAGE_SIZE,
+	"Entry trampoline text too big")
+ASSERT((__entry_iso_change_code_end - __entry_iso_change_code_start) == PAGE_SIZE,
 	"Entry trampoline text too big")
 #endif
 /*
