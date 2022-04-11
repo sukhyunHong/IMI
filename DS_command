@@ -1,3 +1,25 @@
+sudo export MODEL=/home/sslab/workspaces/Base_RevC_AEMvA_pkg/models/Linux64_GCC-9.3/FVP_Base_RevC-2xAEMvA 
+sudo export DISK=/home/sslab/workspaces/0323/arm-reference-platforms/lt-vexpress64-openembedded_minimal-armv8-gcc-4.9_20150912-729.img
+sudo ./run_model.sh /home/sslab/workspaces/0323/arm-reference-platforms/output/fvp/fvp-oe/uboot
+/usr/local/FVP_ARM_Std_Library
+	CONFIG_DEBUG_KERNEL=y CONFIG_DEBUG_INFO=y
+
 thbreak EL2:0x80080000
 set os physical-address 0x80080000
-add-symbol-file "/home/ccma750/IMI/linux-5.4/vmlinux"
+add-symbol-file "/home/sslab/workspaces/0314/IMI/linux-5.4/vmlinux"
+
+add-symbol-file "/home/sslab/workspaces/0323/arm-reference-platforms/linux/out/fvp/mobile_oe/vmlinux"
+thbreak EL1N:0x80080000
+thbreak EL1N:start_kernel
+//entry.S
+thbreak EL1N:0xFFFFFF8008C10B4C
+
+
+https://git.linaro.org/landing-teams/working/arm/arm-reference-platforms.git/tree/sync_workspace.py 
+https://git.linaro.org/landing-teams/working/arm/arm-reference-platforms.git/about/ 
+
+
+깃브런치가져오기
+git clone -b {branch_name} --single-branch {저장소 URL}
+ex) git clone -b javajigi --single-branch https://github.com/javajigi/java-racingcar
+git clone -b svc_ver --single-branch https://github.com/Allist/IMI.git

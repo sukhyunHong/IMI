@@ -66,7 +66,7 @@ alternative_if ARM64_UNMAP_KERNEL_AT_EL0
 	mrs	x30, tpidrro_el0
 	msr	tpidrro_el0, xzr
 	.else
-	mov	x30, xzr
+	mov	x30, xzr0
 	.endif
 	.endif
 alternative_else_nop_endif
@@ -174,7 +174,23 @@ alternative_cb_end
 
 	.else
 	add	x21, sp, #S_FRAME_SIZE
-	get_current_task tsk
+	get_current_task tsk#ifdef CONFIG_BLK_DEV_INITRD
+	if (initrd_start && !initrd_below_start_ok &&
+	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
+		pr_crit("initrd overwritten (0x%08lx < 0x%08lx) - disabling it.\n",
+		    page_to_pfn(virt_to_page((void *)initrd_start)),
+		    min_low_pfn);
+		initrd_start = 0;
+	}
+#endif
+	kmemleak_init();
+	setup_per_cpu_pageset();
+	numa_policy_init();
+	acpi_early_init();
+	if (late_time_init)
+		late_time_init();
+	sched_clock_init();
+	calibrate_delay();
 	/* Save the task's original addr_limit and set USER_DS */
 	ldr	x20, [tsk, #TSK_TI_ADDR_LIMIT]
 	str	x20, [sp, #S_ORIG_ADDR_LIMIT]
@@ -1531,5 +1547,6 @@ alternative_else_nop_endif
 	br	x5
 #endif
 ENDPROC(__sdei_asm_handler)
+
 NOKPROBE(__sdei_asm_handler)
 #endif /* CONFIG_ARM_SDE_INTERFACE */
