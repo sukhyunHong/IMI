@@ -1,0 +1,83 @@
+
+test:     file format elf64-littleaarch64
+
+SYMBOL TABLE:
+0000000000000200 l    d  .interp	0000000000000000              .interp
+000000000000021c l    d  .note.ABI-tag	0000000000000000              .note.ABI-tag
+000000000000023c l    d  .note.gnu.build-id	0000000000000000              .note.gnu.build-id
+0000000000000260 l    d  .gnu.hash	0000000000000000              .gnu.hash
+0000000000000280 l    d  .dynsym	0000000000000000              .dynsym
+00000000000003d0 l    d  .dynstr	0000000000000000              .dynstr
+00000000000004a0 l    d  .gnu.version	0000000000000000              .gnu.version
+00000000000004c0 l    d  .gnu.version_r	0000000000000000              .gnu.version_r
+0000000000000500 l    d  .rela.dyn	0000000000000000              .rela.dyn
+0000000000000620 l    d  .rela.plt	0000000000000000              .rela.plt
+00000000000006e0 l    d  .init	0000000000000000              .init
+0000000000000700 l    d  .plt	0000000000000000              .plt
+0000000000001000 l    d  .text	0000000000000000              .text
+0000000000006084 l    d  .fini	0000000000000000              .fini
+0000000000006098 l    d  .rodata	0000000000000000              .rodata
+000000000000613c l    d  .eh_frame	0000000000000000              .eh_frame
+0000000000016d48 l    d  .init_array	0000000000000000              .init_array
+0000000000016d50 l    d  .fini_array	0000000000000000              .fini_array
+0000000000016d58 l    d  .dynamic	0000000000000000              .dynamic
+0000000000016f58 l    d  .got	0000000000000000              .got
+0000000000017000 l    d  .data	0000000000000000              .data
+0000000000018000 l    d  .bss	0000000000000000              .bss
+0000000000000000 l    d  .comment	0000000000000000              .comment
+0000000000000000 l    df *ABS*	0000000000000000              /usr/lib/gcc-cross/aarch64-linux-gnu/7/../../../../aarch64-linux-gnu/lib/../lib/Scrt1.o
+0000000000000000 l    df *ABS*	0000000000000000              /usr/lib/gcc-cross/aarch64-linux-gnu/7/../../../../aarch64-linux-gnu/lib/../lib/crti.o
+0000000000001038 l     F .text	0000000000000014              call_weak_fn
+0000000000000000 l    df *ABS*	0000000000000000              /usr/lib/gcc-cross/aarch64-linux-gnu/7/../../../../aarch64-linux-gnu/lib/../lib/crtn.o
+0000000000000000 l    df *ABS*	0000000000000000              crtstuff.c
+0000000000001050 l     F .text	0000000000000000              deregister_tm_clones
+0000000000001080 l     F .text	0000000000000000              register_tm_clones
+00000000000010b8 l     F .text	0000000000000000              __do_global_dtors_aux
+0000000000018000 l     O .bss	0000000000000001              completed.8500
+0000000000016d50 l     O .fini_array	0000000000000000              __do_global_dtors_aux_fini_array_entry
+0000000000001100 l     F .text	0000000000000000              frame_dummy
+0000000000016d48 l     O .init_array	0000000000000000              __frame_dummy_init_array_entry
+0000000000000000 l    df *ABS*	0000000000000000              svc_change_ttbr.c
+0000000000000000 l    df *ABS*	0000000000000000              elf-init.oS
+0000000000000000 l    df *ABS*	0000000000000000              crtstuff.c
+000000000000613c l     O .eh_frame	0000000000000000              __FRAME_END__
+0000000000000000 l    df *ABS*	0000000000000000              
+0000000000016d50 l       .init_array	0000000000000000              __init_array_end
+0000000000016d58 l     O *ABS*	0000000000000000              _DYNAMIC
+0000000000016d48 l       .init_array	0000000000000000              __init_array_start
+0000000000016fb0 l     O *ABS*	0000000000000000              _GLOBAL_OFFSET_TABLE_
+0000000000006080 g     F .text	0000000000000004              __libc_csu_fini
+0000000000000000  w      *UND*	0000000000000000              _ITM_deregisterTMCloneTable
+0000000000017000  w      .data	0000000000000000              data_start
+0000000000019000 g     O .bss	0000000000000004              glob_a
+0000000000017010 g       .bss	0000000000000000              __bss_start__
+0000000000000000  w    F *UND*	0000000000000000              __cxa_finalize@@GLIBC_2.17
+0000000000002000 g     F .text	0000000000000024              increase_glob_a
+0000000000019008 g       .bss	0000000000000000              _bss_end__
+0000000000017010 g       .data	0000000000000000              _edata
+0000000000006084 g     F .fini	0000000000000000              _fini
+0000000000019008 g       .bss	0000000000000000              __bss_end__
+0000000000004000 g     F .text	0000000000000044              cxg_dom
+0000000000000000       F *UND*	0000000000000000              __libc_start_main@@GLIBC_2.17
+0000000000003000 g     F .text	0000000000000008              void_fn
+0000000000017000 g       .data	0000000000000000              __data_start
+0000000000000000       F *UND*	0000000000000000              __stack_chk_fail@@GLIBC_2.17
+0000000000000000  w      *UND*	0000000000000000              __gmon_start__
+0000000000000000       O *UND*	0000000000000000              __stack_chk_guard@@GLIBC_2.17
+0000000000017008 g     O .data	0000000000000000              .hidden __dso_handle
+0000000000000000       F *UND*	0000000000000000              abort@@GLIBC_2.17
+0000000000006098 g     O .rodata	0000000000000004              _IO_stdin_used
+0000000000000000       F *UND*	0000000000000000              puts@@GLIBC_2.17
+0000000000006000 g     F .text	0000000000000080              __libc_csu_init
+0000000000019008 g       .bss	0000000000000000              _end
+0000000000001000 g     F .text	0000000000000000              _start
+0000000000019008 g       .bss	0000000000000000              __end__
+0000000000017010 g       .bss	0000000000000000              __bss_start
+0000000000005000 g     F .text	00000000000001bc              main
+0000000000017010 g     O .data	0000000000000000              .hidden __TMC_END__
+0000000000000000  w      *UND*	0000000000000000              _ITM_registerTMCloneTable
+0000000000000000       F *UND*	0000000000000000              printf@@GLIBC_2.17
+0000000000000000       F *UND*	0000000000000000              syscall@@GLIBC_2.17
+00000000000006e0 g     F .init	0000000000000000              _init
+
+
