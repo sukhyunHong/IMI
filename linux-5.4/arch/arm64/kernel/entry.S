@@ -66,7 +66,7 @@ alternative_if ARM64_UNMAP_KERNEL_AT_EL0
 	mrs	x30, tpidrro_el0
 	msr	tpidrro_el0, xzr
 	.else
-	mov	x30, xzr0
+	mov	x30, xzr
 	.endif
 	.endif
 alternative_else_nop_endif
@@ -168,29 +168,13 @@ alternative_cb_end
 	mrs	x21, sp_el0
 	ldr_this_cpu	tsk, __entry_task, x20	// Ensure MDSCR_EL1.SS is clear,
 	ldr	x19, [tsk, #TSK_TI_FLAGS]	// since we can unmask debug
-	disable_step_tsk x19, x20		// exceptions when scheduling.
+	disable_step_tsk x19, x20		// exceptions when scheduling. 성능향상용 주석처리
 
 	apply_ssbd 1, x22, x23
 
 	.else
 	add	x21, sp, #S_FRAME_SIZE
-	get_current_task tsk#ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start && !initrd_below_start_ok &&
-	    page_to_pfn(virt_to_page((void *)initrd_start)) < min_low_pfn) {
-		pr_crit("initrd overwritten (0x%08lx < 0x%08lx) - disabling it.\n",
-		    page_to_pfn(virt_to_page((void *)initrd_start)),
-		    min_low_pfn);
-		initrd_start = 0;
-	}
-#endif
-	kmemleak_init();
-	setup_per_cpu_pageset();
-	numa_policy_init();
-	acpi_early_init();
-	if (late_time_init)
-		late_time_init();
-	sched_clock_init();
-	calibrate_delay();
+	get_current_task tsk
 	/* Save the task's original addr_limit and set USER_DS */
 	ldr	x20, [tsk, #TSK_TI_ADDR_LIMIT]
 	str	x20, [sp, #S_ORIG_ADDR_LIMIT]
@@ -588,39 +572,39 @@ el1_error_invalid:
 	inv_entry 1, BAD_ERROR
 ENDPROC(el1_error_invalid)
 
-/* 
- * EL1t mode handlers.
- */
- .align	6
-el0_sync_iso:
-	kernel_entry 0
-	mrs	x25, esr_el1			// read the syndrome register
-	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class
-	cmp	x24, #ESR_ELx_EC_SVC64		// SVC in 64-bit state
-	b.eq	el0_svc
-	cmp	x24, #ESR_ELx_EC_DABT_CUR	// data abort in EL1t
-	b.eq	el0_da
-	cmp	x24, #ESR_ELx_EC_IABT_CUR	// instruction abort in EL1t
-	b.eq	el0_ia
-	cmp	x24, #ESR_ELx_EC_FP_ASIMD	// FP/ASIMD access
-	b.eq	el0_fpsimd_acc
-	cmp	x24, #ESR_ELx_EC_SVE		// SVE access
-	b.eq	el0_sve_acc
-	cmp	x24, #ESR_ELx_EC_FP_EXC64	// FP/ASIMD exception
-	b.eq	el0_fpsimd_exc
-	cmp	x24, #ESR_ELx_EC_SYS64		// configurable trap
-	ccmp	x24, #ESR_ELx_EC_WFx, #4, ne
-	b.eq	el0_sys
-	cmp	x24, #ESR_ELx_EC_SP_ALIGN	// stack alignment exception
-	b.eq	el0_sp
-	cmp	x24, #ESR_ELx_EC_PC_ALIGN	// pc alignment exception
-	b.eq	el0_pc
-	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL1t
-	b.eq	el0_undef
-	cmp	x24, #ESR_ELx_EC_BREAKPT_CUR	// debug exception in EL1t
-	b.ge	el0_dbg
-	b	el0_inv
-ENDPROC(el0_sync_iso)
+/* 	
+ * EL1t mode handlers.	
+ */	
+ .align	6	
+el0_sync_iso:	
+	kernel_entry 0	
+	mrs	x25, esr_el1			// read the syndrome register	
+	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class	
+	cmp	x24, #ESR_ELx_EC_SVC64		// SVC in 64-bit state	
+	b.eq	el0_svc	
+	cmp	x24, #ESR_ELx_EC_DABT_CUR	// data abort in EL1t	
+	b.eq	el0_da	
+	cmp	x24, #ESR_ELx_EC_IABT_CUR	// instruction abort in EL1t	
+	b.eq	el0_ia	
+	cmp	x24, #ESR_ELx_EC_FP_ASIMD	// FP/ASIMD access	
+	b.eq	el0_fpsimd_acc	
+	cmp	x24, #ESR_ELx_EC_SVE		// SVE access	
+	b.eq	el0_sve_acc	
+	cmp	x24, #ESR_ELx_EC_FP_EXC64	// FP/ASIMD exception	
+	b.eq	el0_fpsimd_exc	
+	cmp	x24, #ESR_ELx_EC_SYS64		// configurable trap	
+	ccmp	x24, #ESR_ELx_EC_WFx, #4, ne	
+	b.eq	el0_sys	
+	cmp	x24, #ESR_ELx_EC_SP_ALIGN	// stack alignment exception	
+	b.eq	el0_sp	
+	cmp	x24, #ESR_ELx_EC_PC_ALIGN	// pc alignment exception	
+	b.eq	el0_pc	
+	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL1t	
+	b.eq	el0_undef	
+	cmp	x24, #ESR_ELx_EC_BREAKPT_CUR	// debug exception in EL1t	
+	b.ge	el0_dbg	
+	b	el0_inv	
+ENDPROC(el0_sync_iso)	
 
 /*
  * EL1 mode handlers.
@@ -763,6 +747,7 @@ ENDPROC(el1_irq)
  */
 	.align	6
 el0_sync:
+	//mov x30, xzr // mov 명령어에다가 브레이크 포인트 되는지 테스트
 	kernel_entry 0
 	mrs	x25, esr_el1			// read the syndrome register
 	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class
@@ -1042,7 +1027,7 @@ ret_to_user:
 	and	x2, x1, #_TIF_WORK_MASK
 	cbnz	x2, work_pending
 finish_ret_to_user:
-	enable_step_tsk x1, x2
+	//enable_step_tsk x1, x2 //하이퍼바이저 성능향상 필요없음 주석 처리
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
 #endif
@@ -1067,21 +1052,30 @@ ENDPROC(el0_svc)
  * Exception vectors trampoline.
  */
 
-	.ltorg
+	.ltorg	
 	.pushsection ".iso_change_code.text", "ax"
 	.align PAGE_SHIFT
 
 iso_cxg_dom_code:
 	msr	tpidrro_el0, x19					// backup x19(function address) into tpidrro_el0
 	mrs	x19, esr_el1
-	lsr x19, x19, #24
+	lsr x19, x19, #24 						//lsr x19, x19, #26
+
 	cmp	x19, #0x56 // check svc inst
-	bne	2f
+	bne	5f
+
 	mrs	x19, esr_el1
 	and	x19, x19, #0xffff
-	cmp x19, #0x0001
+	cmp x19, #0x0000
 	bne 1f
-
+	mrs	x19, tpidrro_el0			// restore x5 from tpidrro_el0
+	b	iso_kernel_ventry_entry
+1:
+	//mrs	x19, esr_el1
+	//and	x19, x19, #0xffff
+	cmp x19, #0x0001
+	bne 3f
+	
 	// svc1
 	// setup sp_el1
 	// core번호로 인한 상대위치 계산.
@@ -1094,14 +1088,14 @@ iso_cxg_dom_code:
 
 	// arch_local_irq_save (interrupt disable)
 	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
-	mrs x20, DAIF
-	and	w21, w20, #0x80
-	cbnz	w21,	#8
-	msr	DAIFSET, #2
-	nop
+	mrs x20, DAIF	//Interrupts Mask Bits  액세스가능하게함 63:10
+	and	w21, w20, #0x80  //I bitvalue access
+	cbnz	w21, 2f // 0 이 아닌경우 분ㅣ명령이 수행지 않고 넘어감 // 1F 32 refix
+	msr	DAIFSET, #2 // I bit check
 
+2:
 	// x19: core 위치, x20: DAIF
-	mov_q	x21, ISO_CODE_VALIAS
+	mov_q	x21, ISO_CODE_VALIAS //64 register divde two instruction
 	sub	x21, x21, #4096	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
 	add	x21, x21, #8		// domain page의 시작부분에는 domain count가 들어가 있고 그 다음부터 domain struct의 배열임.
 
@@ -1119,10 +1113,10 @@ iso_cxg_dom_code:
 	ldr	x24, [x21, #16]
 
 	// special registers 수정.
-	msr	ttbr0_el1, x22
-	msr	sp_el0, x23
-	mrs	x22, ttbr1_el1
-	bfi	x22, x24, #48, #16
+	msr	ttbr0_el1, x22 //ttbr0_el1 설정하기
+	msr	sp_el0, x23 // sp_el0
+	mrs	x22, ttbr1_el1 // ttbr1_el1
+	bfi	x22, x24, #48, #16 //ASID 변경 #2
 	msr	ttbr1_el1, x22
 	isb
 
@@ -1130,16 +1124,16 @@ iso_cxg_dom_code:
 	nop	
 	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
 	eret	// exit from SVC #1
-1:
+3:
 	//cmp x5, #0x56000002		// svc 2
 	cmp x19, #0x0002
-	bne 2f
+	bne 5f
 
 	// svc2
 	// setup sp_el1
 	// core번호로 인한 상대위치 계산.
 	/*
-	mrs	x19, MPIDR_EL1	// 이 register에 cluster / core 에 대한게 있는듯. 하지만 rpi4는 1cluster니까 그냥 해보자...
+	mrs	x19, MPIDR_EL1	// 이 register에 cluster / core 에 대한게 있는듯. 하지만 rpi4는 1cluster니까 그냥 해보자... Multiprocessor Affinity Register
 	mov	x20, #32
 	add x19, x19, #1			// 0번 core부터 시작하니까 한칸 건너뛰기 위해서...
 	mul x19, x19, x20			// 4개 register 저장공간 확보
@@ -1149,10 +1143,10 @@ iso_cxg_dom_code:
 	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
 	mrs x20, DAIF
 	and	w21, w20, #0x80
-	cbnz	w21,	#8
+	cbnz	w21,	4f
 	msr	DAIFSET, #2
-	nop
 
+4:
 	// x19: core 위치, x20: DAIF
 	mov_q	x21, ISO_CODE_VALIAS
 	sub	x21, x21, #4096	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
@@ -1166,23 +1160,23 @@ iso_cxg_dom_code:
 	msr	ttbr0_el1, x22
 	msr	sp_el0, x23
 	mrs	x22, ttbr1_el1
-	bfi	x22, x24, #48, #16
+	bfi	x22, x24, #48, #16        //ASID 변경 #3
 	msr	ttbr1_el1, x22
 	isb
 
 	msr	DAIF, x20				// arch_local_irq_restore (enable interrupt)
 	nop	
 	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
-	eret	// exit from SVC #1
+	eret	// exit from SVC #2
 
-2:	// not svc 1 and 2.
-	mrs	x19, tpidrro_el0			// restore x5 from tpidrro_el0
-	b	iso_kernel_ventry_entry
+5:	// not svc 0 1 and 2. &  restore x5 from tpidrro_el0
+	mrs	x19, tpidrro_el0
+	b iso_kernel_ventry_entry
 
 ENDPROC(iso_cxg_dom_code)
 
 	.ltorg
-	.popsection				// .iso_change_code.text
+	.popsection		 		// .iso_change_code.text
 
 	.pushsection ".entry.tramp.text", "ax"
 
@@ -1300,7 +1294,7 @@ ENTRY(tramp_vectors)
 	tramp_ventry
 	tramp_ventry
 	tramp_ventry
-
+	
 	tramp_ventry	32
 	tramp_ventry	32
 	tramp_ventry	32
@@ -1326,13 +1320,19 @@ __entry_tramp_data_start:
 	.popsection				// .rodata
 #endif /* CONFIG_RANDOMIZE_BASE */
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
-
+// special registers 수정.
+	msr	ttbr0_el1, x22
+	msr	sp_el0, x23
+	mrs	x22, ttbr1_el1
+	bfi	x22, x24, #48, #16 // ASID 변경 #1
+	msr	ttbr1_el1, x22
+	isb
 /*
  * Register switch for AArch64. The callee-saved registers need to be saved
  * and restored. On entry:
  *   x0 = previous task_struct (must be preserved across the switch)
  *   x1 = next task_struct
- * Previous and next are guaranteed not to be the same.
+ * Prevdd if=./test of=./svc/test.isoious and next are guaranteed not to be the same.
  *
  */
 ENTRY(cpu_switch_to)
@@ -1547,6 +1547,5 @@ alternative_else_nop_endif
 	br	x5
 #endif
 ENDPROC(__sdei_asm_handler)
-
 NOKPROBE(__sdei_asm_handler)
 #endif /* CONFIG_ARM_SDE_INTERFACE */

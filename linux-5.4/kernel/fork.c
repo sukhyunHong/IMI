@@ -3432,14 +3432,14 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	
 	// domain metadata 저장.
 	//((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)tsk->domain_mm->pgd;
-	((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
-	((dom_data*)current->iso_meta_data)[1].asid = iso_alloc_new_asid(domain_mm) | 0x1;
+	((dom_data*)tsk->iso_meta_data)[dom_num].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
+	((dom_data*)current->iso_meta_data)[dom_num].asid = iso_alloc_new_asid(domain_mm) | 0x1;
 
 	// systemcall이 아닌 trampoline page에서 바로 ttbr1_el1의 asid를 바로 교체할 것이라서 tramp_ret부분꺼 가져옴.
 	//((dom_data*)current->iso_meta_data)[1].asid -= 0x1 << 12;
 	//((dom_data*)current->iso_meta_data)[1].asid |= 0x1;
 
-	((dom_data*)tsk->iso_meta_data)[1].sp_val = *stack_addr;
+	((dom_data*)tsk->iso_meta_data)[dom_num].sp_val = *stack_addr;
 	
     domain_mm->hiwater_rss = get_mm_rss(domain_mm);
     domain_mm->hiwater_vm = domain_mm->total_vm;
@@ -3449,7 +3449,6 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	
 	// iso module meta data를 domain의 page table에 연결.
 	err = iso_copy_address(domain_mm, tsk->mm, 0x0000ffff99861000, 2*1024*1024);
-    
     // add to domain_mm_list
     if(tsk->domain_mm){
         dml->next = current->domain_mm;
@@ -3470,9 +3469,9 @@ fail_nomem:
 	return NULL;
 }
 
-SYSCALL_DEFINE2(iso_create_domain, uint64_t **, ttbr0, unsigned long *, stack_addr)
+SYSCALL_DEFINE3(iso_create_domain,int, dom_num, uint64_t **, ttbr0, unsigned long *, stack_addr)
 {
-    int dom_num = 1;
+    // int dom_num = *current->cur_dom_num++;
     struct mm_struct * domain_mm;
     /*
     *ttbr0 = (uint64_t *)pgd_alloc(NULL);
@@ -3480,12 +3479,13 @@ SYSCALL_DEFINE2(iso_create_domain, uint64_t **, ttbr0, unsigned long *, stack_ad
     *ttbr0 = (uint64_t *)virt_to_phys(*ttbr0);
     *ttbr0 = (uint64_t *)phys_to_ttbr(*ttbr0);
     */
-    domain_mm = make_domain_test(stack_addr, dom_num);
+    domain_mm = make_domain_test(stack_addr,  current->dom_cnt+1);
 
 	if(domain_mm){
-        printk("domain %d created\n",dom_num);
-    	*ttbr0 = (uint64_t*)((uint64_t)phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
-        return 0;
+		current->dom_cnt++;
+        printk("domain %ld created\n",current->dom_cnt);
+    	//*ttbr0 = (uint64_t*)((uint64_t)phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
+        return current->dom_cnt;
     }
     return -1;
 }
@@ -3495,6 +3495,7 @@ SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
 {
     struct domain_mm_list *dml = current->domain_mm;
     struct mm_struct *d_mm;
+	// printk("assign dom_num: %d \n", dom_num);
 
     while(dml != NULL){
         if(dml->dom_num == dom_num)
@@ -3519,13 +3520,13 @@ SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
 SYSCALL_DEFINE0(iso_init)
 {
 	unsigned long size = 4096; // 1-page.
-	void* addr = ISO_META_VALIAS;;
+	void* addr = ISO_META_VALIAS;
 	long cntkctl;
 
 	//printk("start iso_init\n");
 
 	current->is_iso = 1;
-
+	current->dom_cnt = 0;
 	memset(addr, 0, size);
 
 	current->cur_dom_num = (unsigned long*)addr;
@@ -3534,7 +3535,7 @@ SYSCALL_DEFINE0(iso_init)
 	*current->cur_dom_num = 0;
 	current->iso_meta_data[0].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(current->mm->pgd)) & 0x0000FFFFFFFFFFFF);
 	current->iso_meta_data[0].asid = ASID(current->mm) | 1;
-
+	printk("ISO_META_VALIAS %lx", &addr);
 	//printk("ttbr: %px\n", current->iso_meta_data[0].ttbr);
 
 	// to read CNTPCT_EL0 register in exception level 0, 
