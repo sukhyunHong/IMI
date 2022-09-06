@@ -41,7 +41,7 @@ __attribute__ ((section(".dom1.data"))) int glob_a = 0;
 __attribute__ ((section(".dom1.text"))) void increase_glob_a(void)
 {
 	glob_a++;
-	// glob_c++;
+	// glob_c++;  // global_c++ 을 추가할 경우 테이블을 찾을수없어서 오류가 남
 }
 
 __attribute__ ((section(".dom2.data"))) int glob_b = 0;
@@ -62,9 +62,10 @@ void cxg_dom(int dom_num, void (*fn_addr)(void), unsigned long tmp)
 {
 	// for save link register, frame pointer register, need call function.
 	// So call empty function.
-	void_fn();
+	// void_fn(); //void function이 없을 시 pte를 찾을 수 없어서 오류가남
 	asm volatile ("svc #1\r\n" // svc1 : change domain to dom_num
-			"blr x1\r\n"
+			"blr x1\r\n":::"x30"); // inline assembly formmat update 
+	asm volatile(		
 			"svc #2\r\n"); // svc2 : change domain dom_num to main domain
 
 	// At address 0xFFFF FDFF FE5F A880, real change domain function is there...
@@ -205,7 +206,8 @@ int main(void)
 	// 	printf("iso assign memory failed! exit process\n");
 	// 	return 0;
 	// }
-	ret = syscall(__NR_iso_assign_memory, 1, &__text_start, 4096 * 3);	// global variable
+	// fucntions 14096으로 잡으면 오류가 생김, 4096 *3 으로해야지만 중간에 오류가 나지 않음
+	ret = syscall(__NR_iso_assign_memory, 1, &__text_start, 4096);	// global variable
 	if(ret != 0) {
 		printf("iso assign memory failed! exit process\n");
 		return 0;
@@ -229,7 +231,7 @@ int main(void)
 		return 0;
 	}
 
-	ret = syscall(__NR_iso_assign_memory, 2, &__text_start, 4096 * 3);	// global variable
+	ret = syscall(__NR_iso_assign_memory, 2, &__text_start, 4096);	// global variable
 	if(ret != 0) {
 		printf("iso assign memory failed! exit process\n");
 		return 0;

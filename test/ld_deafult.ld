@@ -50,12 +50,15 @@ SECTIONS
   .plt            : ALIGN(16) { *(.plt) *(.iplt) }
   .text           :
   {
-    __text_start = .;
     *(.text.unlikely .text.*_unlikely .text.unlikely.*)
     *(.text.exit .text.exit.*)
     *(.text.startup .text.startup.*)
     *(.text.hot .text.hot.*)
+    . = ALIGN(4096);
+    __text_start = .;
     *(.text .stub .text.* .gnu.linkonce.t.*)
+    . = ALIGN(4096);
+    __text_end = .;
     /* .gnu.warning sections are handled specially by elf32.em.  */
     *(.gnu.warning)
     
@@ -75,7 +78,6 @@ SECTIONS
     *(.dom2.text)
     . = ALIGN(4096);
     _dom2_end = .;
-    __text_end = .;
   } =0
   .fini           :
   {

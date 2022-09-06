@@ -3434,6 +3434,8 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	//((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)tsk->domain_mm->pgd;
 	((dom_data*)tsk->iso_meta_data)[dom_num].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
 	((dom_data*)current->iso_meta_data)[dom_num].asid = iso_alloc_new_asid(domain_mm) | 0x1;
+	printk("dom_num %d, ttbr:%ld\n",dom_num, tsk->iso_meta_data[dom_num].ttbr);
+	printk("dom_num %d, asid:%ld\n",dom_num, current->iso_meta_data[dom_num].asid);
 
 	// systemcall이 아닌 trampoline page에서 바로 ttbr1_el1의 asid를 바로 교체할 것이라서 tramp_ret부분꺼 가져옴.
 	//((dom_data*)current->iso_meta_data)[1].asid -= 0x1 << 12;

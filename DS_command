@@ -6,13 +6,19 @@ sudo ./run_model.sh /home/sslab/workspaces/0323/arm-reference-platforms/output/f
 
 thbreak EL2:0x80080000
 set os physical-address 0x80080000
-add-symbol-file "/home/sslab/workspaces/0314/IMI/linux-5.4/vmlinux"
+add-symbol-file "/home/sslab/workspaces/svc_ver/IMI/linux-5.4/vmlinux"
 
 add-symbol-file "/home/sslab/workspaces/0323/arm-reference-platforms/linux/out/fvp/mobile_oe/vmlinux"
 thbreak EL1N:0x80080000
 thbreak EL1N:start_kernel
 //entry.S
 thbreak EL1N:0xFFFFFF8008C10B4C
+
+thbreak EL1N:0x80080000
+set os physical-address 0x8008000
+add-symbol-file "/home/sslab/workspaces/svc_ver/IMI/linux-5.4/vmlinux"
+
+
 
 
 https://git.linaro.org/landing-teams/working/arm/arm-reference-platforms.git/tree/sync_workspace.py 
