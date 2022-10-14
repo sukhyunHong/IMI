@@ -3350,7 +3350,7 @@ static __latent_entropy int iso_dup_mmap(struct mm_struct *mm,
 	retval = khugepaged_fork(mm, oldmm);
 	if (retval)
 		goto out;
-
+	///===
 	/* a new mm has just been created */
 	retval = arch_dup_mmap(oldmm, mm);
 out:
@@ -3370,7 +3370,7 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	struct task_struct *tsk = current;
     struct mm_struct *domain_mm = NULL;
     struct domain_mm_list  * dml;
-	int err;
+	int err; 
 	unsigned long stack_size = 2*1024*1024;
 	unsigned long barrier_size = 64*1024;
 
@@ -3415,7 +3415,7 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	//*stack_addr += stack_size + barrier_size;
 	*(int*)(*stack_addr + stack_size + barrier_size - 8) = 0; // On-demand paging을 해결하기 위해서...
 
-	// duplicate mm
+	// duplicate mm    
 	err = iso_dup_mmap(domain_mm, tsk->mm, *stack_addr);
 	if (err)
 		goto free_pt;
@@ -3537,15 +3537,15 @@ SYSCALL_DEFINE0(iso_init)
 	*current->cur_dom_num = 0;
 	current->iso_meta_data[0].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(current->mm->pgd)) & 0x0000FFFFFFFFFFFF);
 	current->iso_meta_data[0].asid = ASID(current->mm) | 1;
-	printk("ISO_META_VALIAS %lx", &addr);
-	//printk("ttbr: %px\n", current->iso_meta_data[0].ttbr);
+	// printk("ISO_META_VALIAS %lx", &addr);
+	printk("ttbr: %px\n", current->iso_meta_data[0].ttbr);
 
 	// to read CNTPCT_EL0 register in exception level 0, 
 	// turn on CNTKCTL_EL1.EL0PCTEN.
-	asm volatile ("mrs %0, CNTKCTL_EL1\r\n"
-		"orr %0, %0, #1\r\n"
-		"msr CNTKCTL_EL1, %0\r\n"
-		:"=r" (cntkctl));
+	// asm volatile ("mrs %0, CNTKCTL_EL1\r\n"
+	// 	"orr %0, %0, #1\r\n"
+	// 	"msr CNTKCTL_EL1, %0\r\n"
+	// 	:"=r" (cntkctl));
 
 	return addr;
 }

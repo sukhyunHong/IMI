@@ -142,6 +142,7 @@ static void show_pte(unsigned long addr)
 	} else if (is_ttbr1_addr(addr)) {
 		/* TTBR1 */
 		mm = &init_mm;
+		printk("ttbr1_addr : %lx\n", addr);
 	} else {
 		pr_alert("[%016lx] address between user and kernel address ranges\n",
 			 addr);
@@ -419,7 +420,6 @@ static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
 			   unsigned int mm_flags, unsigned long vm_flags)
 {
 	struct vm_area_struct *vma = find_vma(mm, addr);
-
 	if (unlikely(!vma))
 		return VM_FAULT_BADMAP;
 
@@ -532,7 +532,9 @@ retry:
 	major |= fault & VM_FAULT_MAJOR;
 
 	if (fault & VM_FAULT_RETRY) {
-		/*
+		/*fa12ba000, end: ffffa14ba000
+[   98.271854]
+		 *
 		 * If we need to retry but a fatal signal is pending,
 		 * handle the signal first. We do not need to release
 		 * the mmap_sem because it would already be released

@@ -2,12 +2,18 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 
 #define __NR_iso_create_domain 436
 #define __NR_iso_assign_memory 437
 #define __NR_iso_init 438
 #define __NR_iso_flush_tlb_all 439
+//thread 패턴인듯
+#define PATTERN1 0xAFFEAFFE
+#define PATTERN2 0xDEADBEEF
+#define PATTERN3 0xC0FFFFEE
+
 
 extern long _dom1_d_start;
 extern long _dom1_d_end;
@@ -52,11 +58,6 @@ __attribute__ ((section(".dom2.text"))) void increase_glob_b(void)
 	glob_b++;
 }
 
-// void void_fn(void)
-// {
-// 	return;
-// }
-
 
 void cxg_dom(int dom_num, void (*fn_addr)(void), unsigned long tmp)
 {
@@ -78,37 +79,67 @@ void cxg_dom(int dom_num, void (*fn_addr)(void), unsigned long tmp)
 	*/
 }
 
+void* pthread1(void* arg){
 
-// void ultoa(unsigned long value, char* string, int radix)
-// {
-// unsigned char index;
-// char buffer[NUMBER_OF_DIGITS];  /* space for NUMBER_OF_DIGITS + '\0' */
+    uintptr_t var = (uintptr_t)arg;
+    for (size_t i = 0; i < 1000; i++){
+        var++;
+        sched_yield();
+    }
+    return (void*) var;
 
-//   index = NUMBER_OF_DIGITS;
+}
 
-//   do {
-//     buffer[--index] = '0' + (value % radix);
-//     if ( buffer[index] > '9') buffer[index] += 'A' - ':'; /* continue with A, B,... */
-//     value /= radix;
-//   } while (value != 0);
+void* pthread2(void* arg){
+    uintptr_t var = (uintptr_t)arg;
+    for (size_t i =0; i < 1000; i++){
+        var +=7;
+        sched_yield();
+    }
+    return (void*)var;
+}
 
-//   do {
-//     *string++ = buffer[index++];
-//   } while ( index < NUMBER_OF_DIGITS );
+void* pthread3(void* arg) {
+    printf("I am thread 3: %p\n", arg);
+    uintptr_t var = (uintptr_t)arg;
+    for (size_t i = 0; i < 1000; i++) {
+      var+=5;
+      sched_yield();//user level에서 프로세스가 다른 프로세스에 넘길때 
+    }
+    printf("thread3 returning %lx", var);
+    //pthread_exit((void*)var);
+    return (void*)var;
+}
 
-//   *string = 0;  /* string terminator */
-// }
+void test4_pthread(){
+    int ret;
+    pthread_t thread1, thread2, thread3;
+    ret = pk_pthread_create(&thread1, NULL, pthread1, (void*)PATTERN1);
+    // assert(ret == 0);
+    ret = pk_pthread_create(&thread2, NULL, pthread2, (void*)PATTERN2);
+    // assert(ret == 0);
+    ret = pk_pthread_create(&thread3, NULL, pthread3, (void*)PATTERN3);
+    // assert(ret == 0);
+    printf("Main waiting for other thread");
 
-// void ltoa(long value, char* string, int radix)
-// {
-//   if (value < 0 && radix == 10) {
-//     *string++ = '-';
-//     ultoa(-value, string, radix);
-//   }
-//   else {
-//     ultoa(value, string, radix);
-//   }
-// }
+    uintptr_t retval;
+    ret = pthread_join(thread3, (void*)&retval);
+    // assert(ret == 0);
+    printf("retval = %lx", retval);
+    printf(retval == PATTERN3+1000*5);
+
+    ret = pthread_join(thread2, (void*)&retval);
+    // assert(ret == 0);
+    printf("retval = %lx", retval);
+    printf(retval == PATTERN2+1000*7);
+
+    ret = pthread_join(thread1, (void*)&retval);
+    // assert(ret == 0);
+    printf("retval = %lx", retval);
+    printf(retval == PATTERN1+1000);
+
+    printf("Main done waiting");
+}
 
 
 
