@@ -59,6 +59,6 @@ int main(void)
 	pid = clone(f, stack + PAGE_SIZE, CLONE_THREAD|CLONE_SIGHAND|CLONE_VM, (void *)1);
 	assert(pid > 0);
 	pause();
-
+ 
 	return 0;
 }
