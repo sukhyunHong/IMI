@@ -747,7 +747,6 @@ ENDPROC(el1_irq)
  */
 	.align	6
 el0_sync:
-	//mov x30, xzr // mov 명령어에다가 브레이크 포인트 되는지 테스트
 	kernel_entry 0
 	mrs	x25, esr_el1			// read the syndrome register
 	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class
@@ -1132,13 +1131,6 @@ iso_cxg_dom_code:
 	// svc2
 	// setup sp_el1
 	// core번호로 인한 상대위치 계산.
-	/*
-	mrs	x19, MPIDR_EL1	// 이 register에 cluster / core 에 대한게 있는듯. 하지만 rpi4는 1cluster니까 그냥 해보자... Multiprocessor Affinity Register
-	mov	x20, #32
-	add x19, x19, #1			// 0번 core부터 시작하니까 한칸 건너뛰기 위해서...
-	mul x19, x19, x20			// 4개 register 저장공간 확보
-	*/
-
 	// arch_local_irq_save (interrupt disable)
 	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
 	mrs x20, DAIF
