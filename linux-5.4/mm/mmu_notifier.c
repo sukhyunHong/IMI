@@ -236,9 +236,10 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 
 	id = srcu_read_lock(&srcu);
 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-		if (mn->ops->invalidate_range)
+		if (mn->ops->invalidate_range){
 			printk("Invliad call copy_page_range, start: %lx, end: %lx\n", start, end);
 			mn->ops->invalidate_range(mn, mm, start, end);
+		}
 	}
 	srcu_read_unlock(&srcu, id);
 }

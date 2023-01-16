@@ -151,7 +151,13 @@ void update_domain_pte(unsigned long addr,  pte_t* src_pte){
     printk("===update_domain_pte called, addr: %lx===\n", addr);
     while(dml != NULL){
         d_vma = find_vma(dml->mm, addr);
-    
+		// if(current->is_iso==1){
+		// 	// for(int i =0; i < 1; i++){
+
+		// 	// struct iso_thread *iso_thread_data;
+		// 	// printk("===memory iso_current stack: %lx===\n", iso_thread_data[0].iso_stack);
+		// 	// }
+		// }
        
         if(d_vma == NULL){
 			printk("vma is not exist in this mm\n");
@@ -167,7 +173,7 @@ void update_domain_pte(unsigned long addr,  pte_t* src_pte){
       
         d_mm = d_vma->vm_mm;
         
-        //d_mm = dml->mm;
+        // d_mm = dml->mm;
 
         pgd = pgd_offset(d_mm, addr);
         p4d = p4d_alloc(d_mm,pgd,addr);

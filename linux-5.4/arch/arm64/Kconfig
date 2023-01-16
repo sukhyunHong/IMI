@@ -1070,7 +1070,7 @@ config FORCE_MAX_ZONEORDER
 
 config UNMAP_KERNEL_AT_EL0
 	bool "Unmap kernel when running in userspace (aka \"KAISER\")" if EXPERT
-	default y
+	default n
 	help
 	  Speculation attacks against some high-performance processors can
 	  be used to bypass MMU permission checks and leak kernel data to
@@ -1078,7 +1078,7 @@ config UNMAP_KERNEL_AT_EL0
 	  when running in userspace, mapping it back in on exception entry
 	  via a trampoline page in the vector table.
 
-	  If unsure, say Y.
+	  If unsure, say n.
 
 config HARDEN_BRANCH_PREDICTOR
 	bool "Harden the branch predictor against aliasing attacks" if EXPERT

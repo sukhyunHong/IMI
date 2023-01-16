@@ -46,7 +46,7 @@ EXPORT_SYMBOL(vabits_actual);
 
 u64 kimage_voffset __ro_after_init;
 EXPORT_SYMBOL(kimage_voffset);
-
+// extern void * ISO_META_VALIAS;
 /*
  * Empty_zero_page is a special page that is used for zero-initialized data
  * and COW.
@@ -543,7 +543,6 @@ static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,
 {
 	phys_addr_t pa_start = __pa_symbol(va_start);
 	unsigned long size = va_end - va_start;
-
 	BUG_ON(!PAGE_ALIGNED(pa_start));
 	BUG_ON(!PAGE_ALIGNED(size));
 
@@ -580,53 +579,30 @@ static int __init parse_rodata(char *arg)
 }
 early_param("rodata", parse_rodata);
 
+
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 static int __init map_entry_trampoline(void)
 {
 	pgprot_t prot = rodata_enabled ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
 	phys_addr_t pa_start = __pa_symbol(__entry_tramp_text_start);
-	phys_addr_t pa_start2 = __pa_symbol(__entry_iso_change_code_start);
-
-	unsigned long size = 4096;
-	void* addr;	
 
 	/* The trampoline is always mapped and can therefore be global */
 	pgprot_val(prot) &= ~PTE_NG;
 
 	/* Map only the text into the trampoline page table */
 	memset(tramp_pg_dir, 0, PGD_SIZE);
-	__create_pgd_mapping(tramp_pg_dir, pa_start2, ISO_CODE_VALIAS, PAGE_SIZE,
-			     prot, __pgd_pgtable_alloc, 0);
 	__create_pgd_mapping(tramp_pg_dir, pa_start, TRAMP_VALIAS, PAGE_SIZE,
 			     prot, __pgd_pgtable_alloc, 0);
 
-
-	// 이건 매 iso_init 마다 해줘야 하는 거지만 여기서 하는걸로 하자.
-	// iso_init에서 매번 새로운 trampoline을 만드는게 논문의 내용중 하나이지만 우리는 그냥 한번에 하나의 응용 프로그램만 테스트할꺼니까
-	// iso_init에서는 iso meta page를 memset으로 초기화 하도록 하자.
-
-	addr = kmalloc(size, GFP_KERNEL);
-	if(addr == NULL) {
-		printk("create iso meta page error!\n");
-		// 실패시 무한루프를 돌도록 하자.
-		while(true);
-	}
-	memset(addr, 0, size);
-	__create_pgd_mapping(tramp_pg_dir, virt_to_phys(addr), ISO_META_VALIAS, PAGE_SIZE,
-			     PAGE_KERNEL_EXEC, __pgd_pgtable_alloc, 0);
-	__create_pgd_mapping(swapper_pg_dir, virt_to_phys(addr), ISO_META_VALIAS, PAGE_SIZE,
-			     PAGE_KERNEL_EXEC, __pgd_pgtable_alloc, 0);
-
 	/* Map both the text and data into the kernel page table */
-	__set_fixmap(FIX_ENTRY_ISO_CHANGE_CODE, pa_start2, prot);
-	__set_fixmap(FIX_ENTRY_TRAMP_TEXT, pa_start, prot);
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
-		extern char __entry_tramp_data_start[];
+	// __set_fixmap(FIX_ENTRY_TRAMP_TEXT, pa_start, prot);
+	// if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
+	// 	extern char __entry_tramp_data_start[];
 
-		__set_fixmap(FIX_ENTRY_TRAMP_DATA,
-			     __pa_symbol(__entry_tramp_data_start),
-			     PAGE_KERNEL_RO);
-	}
+	// 	__set_fixmap(FIX_ENTRY_TRAMP_DATA,
+	// 		     __pa_symbol(__entry_tramp_data_start),
+	// 		     PAGE_KERNEL_RO);
+	// }
 
 	return 0;
 }
@@ -690,6 +666,7 @@ static void __init map_kernel(pgd_t *pgdp)
 
 	kasan_copy_shadow(pgdp);
 }
+
 
 void __init paging_init(void)
 {

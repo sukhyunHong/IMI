@@ -103,7 +103,7 @@ __attribute__ ((section(".dom1.data"))) int cnt1  = 0;
 
 __attribute__ ((section(".dom1.text"))) void pthread1(void* arg)
 {
-	pthread_create(&thread1, NULL, count, (void *)"thread1");
+	// pthread_create(&thread1, NULL, count, (void *)"thread1");
 	cnt1++;
 }
 
@@ -155,6 +155,25 @@ void cxg_dom(int dom_num, void (*fn_addr)(void), unsigned long tmp)
 // }
 
 
+int f(void *arg)
+{
+	// char buf1[64], buf2[64];
+	pid_t pid, tid;
+	// ssize_t rv;
+
+	// pid = sys_getpid();
+	// tid = sys_gettid();
+	// snprintf(buf1, sizeof(buf1), "%u/task/%u", pid, tid);
+
+	// rv = readlink("/proc/thread-self", buf2, sizeof(buf2));
+	// assert(rv == strlen(buf1));
+	// buf2[rv] = '\0';
+	// assert(streq(buf1, buf2));
+
+	if (arg)
+		exit(0);
+	return 0;
+}
 
 int main(void)
 {
@@ -222,6 +241,22 @@ int main(void)
 	printf("dom1_start %lx\n", &_dom2_start);
 	printf("dom1_end %lx\n\n\n", &_dom2_end);
 
+	const int PAGE_SIZE = 2*1024*1024;
+	pid_t pid;
+	void *stack;
+
+	/* main thread */
+	f((void *)0);
+
+	// stack = mmap(NULL, 2 * PAGE_SIZE, stack_addr, stack_addr, -1, 0);
+	// assert(stack != MAP_FAILED);
+	/* side thread */
+	pid = clone(f, stack + PAGE_SIZE, stack_addr, (void *)1);
+	printf("pid===clone %u", pid);
+	// assert(pid > 0);
+	pause();
+ 
+	return 0;
 
 	ret = syscall(__NR_iso_init);
 	if(ret == 0) {
@@ -252,6 +287,7 @@ int main(void)
 	if(ret != 0) {
 		printf("iso assign memory failed! exit process\n");
 		return 0;
+
 	}
 
 	syscall(__NR_iso_assign_memory, 1, &_dom1_d_start, 4096);	// functions...

@@ -142,6 +142,14 @@ static char *initcall_command_line;
 static char *execute_command;
 static char *ramdisk_execute_command;
 
+
+
+
+
+/*iso_code_valias*/
+//  void * ISO_CODE_VALIAS;
+
+
 /*
  * Used to generate warnings if static_key manipulation functions are used
  * before jump_label_init is called.
@@ -552,7 +560,7 @@ static void __init mm_init(void)
 	 * page_ext requires contiguous pages,
 	 * bigger than MAX_ORDER unless SPARSEMEM.
 	 */
-	page_ext_init_flatmem();
+	page_ext_init_flatmem(); //page_ext__init_flatmem();
 	report_meminit();
 	mem_init();
 	kmem_cache_init();
@@ -560,7 +568,7 @@ static void __init mm_init(void)
 	pgtable_init();
 	debug_objects_mem_init();
 	vmalloc_init();
-	ioremap_huge_init();
+	ioremap_huge_init(); //ioremap_hugeinit();
 	/* Should be run before the first non-init thread is created */
 	init_espfix_bsp();
 	/* Should be run after espfix64 is set up. */
@@ -782,6 +790,13 @@ asmlinkage __visible void __init start_kernel(void)
 
 	/* Do the rest non-__init'ed, we're now alive */
 	arch_call_rest_init();
+
+	// ISO_META_VALIAS
+	// __get_free_pages(GFP_KERNEL, 0);
+	// ISO_META_VALIAS = get_zeroed_page(GFP_KERNEL);
+	// ISO_CODE_VALIAS = get_zeroed_page(GFP_KERNEL);
+	// __get_free_pages(GFP_KERNEL,(unsigned int) ISO_CODE_VALIAS);
+	// __get_free_pages(GFP_KERNEL,(unsigned int) ISO_META_VALIAS);
 }
 
 /* Call all constructor functions linked into the kernel. */

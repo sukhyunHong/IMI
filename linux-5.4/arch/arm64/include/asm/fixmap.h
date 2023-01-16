@@ -61,15 +61,15 @@ enum fixed_addresses {
 	FIX_APEI_GHES_SDEI_CRITICAL,
 #endif
 #endif /* CONFIG_ACPI_APEI_GHES */
+// 	FIX_ENTRY_ISO_CHANGE_CODE,
+// 	FIX_ISO_META_DATA1,
+// #define ISO_CODE_VALIAS		(__fix_to_virt(FIX_ENTRY_ISO_CHANGE_CODE))
+// #define ISO_META_VALIAS		(__fix_to_virt(FIX_ISO_META_DATA1))
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	FIX_ENTRY_TRAMP_DATA,
 	FIX_ENTRY_TRAMP_TEXT,
-	FIX_ENTRY_ISO_CHANGE_CODE,
-	FIX_ISO_META_DATA1,
 #define TRAMP_VALIAS		(__fix_to_virt(FIX_ENTRY_TRAMP_TEXT))
-#define ISO_CODE_VALIAS		(__fix_to_virt(FIX_ENTRY_ISO_CHANGE_CODE))
-#define ISO_META_VALIAS		(__fix_to_virt(FIX_ISO_META_DATA1))
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 	__end_of_permanent_fixed_addresses,
 

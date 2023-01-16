@@ -112,6 +112,8 @@
 #include <asm/iso_module.h>
 #include <asm/mmu.h>
 
+
+
 /*
  * Minimum number of threads to boot the kernel
  */
@@ -129,6 +131,17 @@ unsigned long total_forks;	/* Handle normal Linux uptimes. */
 int nr_threads;			/* The idle threads do not count.. */
 
 static int max_threads;		/* tunable limit on nr_threads */
+
+void * ISO_META_VALIAS;
+// extern void * ISO_CODE_VALIAS;
+unsigned long * _iso_table;
+
+// typedef struct iso_thread {
+	// unsigned long stack;
+	// unsigned long iso_tid;
+// } iso_thread;
+// iso_thread iso_thread_data[10];
+// int iso_cnt = 0;
 
 #define NAMED_ARRAY_INDEX(x)	[x] = __stringify(x)
 
@@ -270,6 +283,11 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 #endif
 }
 
+// static inline void free_iso_thread(struct task_struct *tsk)
+// {
+// 	kmem_cache_free(isothread_cachep ,tsk->iso_thread);
+// }
+
 static inline void free_thread_stack(struct task_struct *tsk)
 {
 #ifdef CONFIG_VMAP_STACK
@@ -293,7 +311,6 @@ static inline void free_thread_stack(struct task_struct *tsk)
 
 			return;
 		}
-
 		vfree_atomic(tsk->stack);
 		return;
 	}
@@ -345,6 +362,10 @@ static struct kmem_cache *vm_area_cachep;
 
 /* SLAB cache for mm_struct structures (tsk->mm) */
 static struct kmem_cache *mm_cachep;
+
+/* SLAB cache for mm_struct structures (tsk->iso_thread) */
+// static struct kmem_cache *isothread_cachep;
+
 
 struct vm_area_struct *vm_area_alloc(struct mm_struct *mm)
 {
@@ -872,9 +893,14 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 		return NULL;
 
 	stack = alloc_thread_stack_node(tsk, node);
+	// if(!stack)
+	// 	goto free_iso_thread;
 	if (!stack)
 		goto free_tsk;
+	if(current->is_iso == 1){
 
+		printk("copy_process_check is_iso");
+	}
 	if (memcg_charge_kernel_stack(tsk))
 		goto free_stack;
 
@@ -952,12 +978,14 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 
 	// iso part
 	tsk->iso_meta_data = NULL;
+	// tsk->iso_thread_data = NULL;
 	tsk->domain_mm = NULL;
 	tsk->is_iso = 0;
     tsk->saved_domain_context = NULL;
 
 	return tsk;
-
+// free_iso_thread:
+// 	free_iso_thread(tsk);
 free_stack:
 	free_thread_stack(tsk);
 free_tsk:
@@ -1668,10 +1696,17 @@ static inline void init_task_pid_links(struct task_struct *task)
 static inline void
 init_task_pid(struct task_struct *task, enum pid_type type, struct pid *pid)
 {
-	if (type == PIDTYPE_PID)
+
+	
+	if (type == PIDTYPE_PID){
+
 		task->thread_pid = pid;
-	else
+		printk("__init_task_pid's pid: %lu", (unsigned long)pid);
+	}
+
+	else{
 		task->signal->pids[type] = pid;
+	}
 }
 
 static inline void rcu_copy_process(struct task_struct *p)
@@ -1700,7 +1735,7 @@ struct pid *pidfd_pid(const struct file *file)
 static int pidfd_release(struct inode *inode, struct file *file)
 {
 	struct pid *pid = file->private_data;
-
+	
 	file->private_data = NULL;
 	put_pid(pid);
 	return 0;
@@ -1784,7 +1819,7 @@ static __latent_entropy struct task_struct *copy_process(
 	struct multiprocess_signals delayed;
 	struct file *pidfile = NULL;
 	u64 clone_flags = args->flags;
-
+	
 	/*
 	 * Don't allow sharing the root directory with processes in a different
 	 * namespace
@@ -1799,9 +1834,14 @@ static __latent_entropy struct task_struct *copy_process(
 	 * Thread groups must share signals as well, and detached threads
 	 * can only be started up within the thread group.
 	 */
+	
 	if ((clone_flags & CLONE_THREAD) && !(clone_flags & CLONE_SIGHAND))
 		return ERR_PTR(-EINVAL);
+	printk("clone_process COPY_THREAD %ld", (unsigned long)pid);
+	if(current->is_iso == 1){
 
+		printk("copy_process_check is_iso");
+	}
 	/*
 	 * Shared signal handlers imply shared VM. By way of the above,
 	 * thread groups also imply shared VM. Blocking this case allows
@@ -1825,6 +1865,58 @@ static __latent_entropy struct task_struct *copy_process(
 	 * do not allow it to share a thread group with the forking task.
 	 */
 	if (clone_flags & CLONE_THREAD) {
+		//======CLONE_THREAD 
+		printk("clone_process COPY_THREAD %ld\n", (unsigned long)pid);
+		printk("CLONE_THREAD : %lld\n", clone_flags);
+		printk("args->child_tid %ld\n", (unsigned long)args->child_tid);
+		printk("args->parent_tid %ld\n", (unsigned long)args->parent_tid);
+		printk("args->stack %ld\n", (unsigned long)args->stack);
+		// pthread_id_np_t   tid;
+		// tid = pthread_getthreadid_np();
+		// pid_t tid_g; 
+		// tid_g = in_syscall(__NR_gettid);
+		// printk("gettid(); %u\n", (unsigned int)tid_g);
+		// iso_thread_data[iso_cnt].stack = (unsigned long)args->stack;
+		// iso_thread_data[iso_cnt].iso_tid =  (unsigned long)args->child_tid;
+		// printk("args-> stack: %u,==== tid: %u\n",iso_thread_data[iso_cnt].stack, iso_thread_data[iso_cnt].iso_tid);
+		// if(iso_cnt != 10){
+		// 	iso_cnt++;
+		// } else{
+		// 	iso_cnt = 0;
+		// }
+		// int size = 8*2*20;               
+		// memset(addr, 0, size);
+		// iso_thread_data = (struct iso_thread)kmalloc(size, GFP_KERNEL);
+		// iso_thread_data[0].iso_tid = args->child_tid;
+		// iso_thread_data[0].stack = args->stack;
+		if(current->is_iso == 1){
+
+			printk("copy_process_THREAD is_iso\n");
+
+
+
+		} else{
+			// if(!current->iso_thread){
+			// 	int i = 0;
+			// 	int j = 0;
+			// 	for(i = 0; i < sizeof(current->iso_thread[0])/4;i++){
+			// 		for (j=0; j < 2; j++){
+			// 			printk("search_thread %u\n", current->iso_thread[i][j]);
+			// 		}
+			// 	}
+			// }
+			// int num = 1;
+			// if(  sizeof( current->iso_thread )> 0){
+
+			// 	num = sizeof(current->iso_thread[0])/4;
+			// }
+			// num--;
+
+			// iso_a = &stack
+			// printk("dangdnag current %u current thread %u\n", current->iso_thread[0][0], current->iso_thread[0][1]);
+			
+			
+		}
 		if ((clone_flags & (CLONE_NEWUSER | CLONE_NEWPID)) ||
 		    (task_active_pid_ns(current) !=
 				current->nsproxy->pid_ns_for_children))
@@ -2105,6 +2197,7 @@ static __latent_entropy struct task_struct *copy_process(
 		p->exit_signal = -1;
 		p->group_leader = current->group_leader;
 		p->tgid = current->tgid;
+
 	} else {
 		if (clone_flags & CLONE_PARENT)
 			p->exit_signal = current->group_leader->exit_signal;
@@ -2356,7 +2449,7 @@ long _do_fork(struct kernel_clone_args *args)
 	struct task_struct *p;
 	int trace = 0;
 	long nr;
-
+	
 	/*
 	 * Determine whether and which event to report to ptracer.  When
 	 * called from kernel_thread or CLONE_UNTRACED is explicitly
@@ -2388,6 +2481,10 @@ long _do_fork(struct kernel_clone_args *args)
 	trace_sched_process_fork(current, p);
 
 	pid = get_task_pid(p, PIDTYPE_PID);
+	if(current->is_iso == 1){
+		printk("copy_process_check is_iso");
+	}
+	// printk("get_task_pid's pid: %u", (unsigned long)pid);
 	nr = pid_vnr(pid);
 
 	if (clone_flags & CLONE_PARENT_SETTID)
@@ -2442,13 +2539,14 @@ long do_fork(unsigned long clone_flags,
 		.stack		= stack_start,
 		.stack_size	= stack_size,
 	};
-
+	
 	if (!legacy_clone_args_valid(&args))
 		return -EINVAL;
 
 	return _do_fork(&args);
 }
 #endif
+
 
 /*
  * Create a kernel thread.
@@ -2461,7 +2559,7 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 		.stack		= (unsigned long)fn,
 		.stack_size	= (unsigned long)arg,
 	};
-
+	
 	return _do_fork(&args);
 }
 
@@ -2719,6 +2817,10 @@ void __init proc_caches_init(void)
 			sizeof(struct fs_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
 			NULL);
+	// isothread_cachep = kmem_cache_create("isothread_cache",
+	// 		sizeof(iso_thread), 0,
+	// 		SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
+	// 		NULL);	
 
 	/*
 	 * The mm_cpumask is located at the end of mm_struct, and is
@@ -3175,7 +3277,7 @@ static __latent_entropy int iso_copy_address(struct mm_struct *mm,
 	printk("===copy_page_range called===\n");
 
 	for (; mpnt; mpnt = mpnt->vm_next) {
-		struct file *file;
+		// struct file *file;
 		unsigned long start, end;
 
 		// check whether this mpnt vma is the one that we want...
@@ -3370,6 +3472,7 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	struct task_struct *tsk = current;
     struct mm_struct *domain_mm = NULL;
     struct domain_mm_list  * dml;
+	// struct iso_thread *iso_thread_data = NULL;
 	int err; 
 	unsigned long stack_size = 2*1024*1024;
 	unsigned long barrier_size = 64*1024;
@@ -3392,7 +3495,6 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
     dml->next = NULL;
     dml->mm = domain_mm; 
     dml->dom_num  = dom_num;
-   
 	// allocate domain's new stack
 	*stack_addr = ksys_mmap_pgoff(0, stack_size + barrier_size, 
 				PROT_NONE, 
@@ -3414,14 +3516,14 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 
 	//*stack_addr += stack_size + barrier_size;
 	*(int*)(*stack_addr + stack_size + barrier_size - 8) = 0; // On-demand paging을 해결하기 위해서...
-
+	*(int*)(*stack_addr) =0;
 	// duplicate mm    
 	err = iso_dup_mmap(domain_mm, tsk->mm, *stack_addr);
 	if (err)
 		goto free_pt;
 
 	// link stack memory to new domain.
-	//err = iso_copy_address(domain_mm, tsk->mm, *stack_addr+stack_size+barrier_size-4096, 4096);// stack의 맨 위에 첫번째 page만 연결.
+	// err = iso_copy_address(domain_mm, tsk->mm, *stack_addr+stack_size+barrier_size-4096, 4096);// stack의 맨 위에 첫번째 page만 연결.
 	err = iso_copy_address(domain_mm, tsk->mm, *stack_addr, stack_size + barrier_size);// stack+barrier 모두 연결.
 	if (err)
 		goto free_pt;
@@ -3431,10 +3533,9 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 	*stack_addr += stack_size + barrier_size - 0x100;
 	
 	// domain metadata 저장.
-	//((dom_data*)tsk->iso_meta_data)[1].ttbr = (unsigned long*)tsk->domain_mm->pgd;
 	((dom_data*)tsk->iso_meta_data)[dom_num].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(domain_mm->pgd)) & 0x0000FFFFFFFFFFFF);
 	((dom_data*)current->iso_meta_data)[dom_num].asid = iso_alloc_new_asid(domain_mm) | 0x1;
-	printk("dom_num %d, ttbr:%ld\n",dom_num, tsk->iso_meta_data[dom_num].ttbr);
+	printk("dom_num %d, ttbr:%px\n",dom_num, tsk->iso_meta_data[dom_num].ttbr);
 	printk("dom_num %d, asid:%ld\n",dom_num, current->iso_meta_data[dom_num].asid);
 
 	// systemcall이 아닌 trampoline page에서 바로 ttbr1_el1의 asid를 바로 교체할 것이라서 tramp_ret부분꺼 가져옴.
@@ -3450,15 +3551,22 @@ struct mm_struct * make_domain_test(unsigned long *stack_addr , int dom_num)
 		goto free_pt;
 	
 	// iso module meta data를 domain의 page table에 연결.
-	err = iso_copy_address(domain_mm, tsk->mm, 0x0000ffff99861000, 2*1024*1024);
+	err = iso_copy_address(domain_mm, tsk->mm, (unsigned long) (current->iso_meta_data), 2*1024*1024);
+	// err = iso_copy_address(domain_mm, tsk->mm, tsk->iso_meta_data, 2*1024*1024);
+	// (int) (current->iso_meta_data[0].ttbr)
+	// err = iso_copy_address(domain_mm, tsk->mm, *_iso_table, 2*1024*1024);	
+	// err = iso_copy_address(domain_mm, tsk->mm, current->domain_mm, 2*1024*1024);	
     // add to domain_mm_list
+	// err = iso_copy_address(domain_mm, tsk->mm, iso_thread_data[iso_cnt].stack, 8 *2 * 10);
+
+
     if(tsk->domain_mm){
         dml->next = current->domain_mm;
         current->domain_mm = dml;
     }
-    else 
+    else {
         tsk->domain_mm = dml;
-        
+	}
 	return domain_mm;
 
 free_pt:
@@ -3497,7 +3605,7 @@ SYSCALL_DEFINE3(iso_assign_memory, int, dom_num, uint64_t, addr, uint64_t, size)
 {
     struct domain_mm_list *dml = current->domain_mm;
     struct mm_struct *d_mm;
-	// printk("assign dom_num: %d \n", dom_num);
+	printk("assign dom_num: %d addr: %llx \n", dom_num, addr);
 
     while(dml != NULL){
         if(dml->dom_num == dom_num)
@@ -3523,31 +3631,41 @@ SYSCALL_DEFINE0(iso_init)
 {
 	unsigned long size = 4096; // 1-page.
 	void* addr = ISO_META_VALIAS;
-	long cntkctl;
-
-	//printk("start iso_init\n");
-
+	// void * ISO_META_VALIAS;
+	// __get_free_pages(GFP_KERNEL,(unsigned int) addr);
+	// addr = get_zeroed_page(GFP_KERNEL);
+	// __get_free_pages(GFP_KERNEL, (unsigned long) addr);
+	// ISO_META_VALIAS = (unsigned long*) get_zeroed_page(size, GFP_KERNEL);
+	// void * addr = ISO_META_VALIAS;
+	/*iso_meta_valias*/
 	current->is_iso = 1;
 	current->dom_cnt = 0;
+	// memset(ISO_META_VALIAS, 0, size);
+	addr = kmalloc(size, GFP_KERNEL);
+	if(addr == NULL) {
+		printk("create iso meta page error!\n");
+		// 실패시 무한루프를 돌도록 하자.
+		while(true);
+	}
 	memset(addr, 0, size);
 
 	current->cur_dom_num = (unsigned long*)addr;
 	current->iso_meta_data = (dom_data*)(addr+8);
-	
 	*current->cur_dom_num = 0;
+	printk("iso_init pgd ttbr %p\n",current->mm->pgd);
 	current->iso_meta_data[0].ttbr = (unsigned long*)(phys_to_ttbr(virt_to_phys(current->mm->pgd)) & 0x0000FFFFFFFFFFFF);
 	current->iso_meta_data[0].asid = ASID(current->mm) | 1;
 	// printk("ISO_META_VALIAS %lx", &addr);
 	printk("ttbr: %px\n", current->iso_meta_data[0].ttbr);
-
+	_iso_table = (unsigned long*) (current->iso_meta_data);
 	// to read CNTPCT_EL0 register in exception level 0, 
 	// turn on CNTKCTL_EL1.EL0PCTEN.
 	// asm volatile ("mrs %0, CNTKCTL_EL1\r\n"
 	// 	"orr %0, %0, #1\r\n"
 	// 	"msr CNTKCTL_EL1, %0\r\n"
 	// 	:"=r" (cntkctl));
-
-	return addr;
+	// _iso_table = &(current->iso_meta_data[0]);
+	return (unsigned long) addr;
 }
 
 

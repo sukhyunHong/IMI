@@ -122,7 +122,7 @@ int main(void)
   BLANK();
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
   DEFINE(TRAMP_VALIAS,		TRAMP_VALIAS);
-  DEFINE(ISO_CODE_VALIAS,		ISO_CODE_VALIAS);
+  // DEFINE(ISO_CODE_VALIAS,		ISO_CODE_VALIAS);
 #endif
 #ifdef CONFIG_ARM_SDE_INTERFACE
   DEFINE(SDEI_EVENT_INTREGS,	offsetof(struct sdei_registered_event, interrupted_regs));

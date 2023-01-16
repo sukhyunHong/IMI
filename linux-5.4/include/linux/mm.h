@@ -2898,6 +2898,5 @@ struct domain_context{
     unsigned long ttbr1;
 };
 
-
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

@@ -25,7 +25,8 @@
 #include <asm/thread_info.h>
 #include <asm/asm-uaccess.h>
 #include <asm/unistd.h>
-
+.extern _iso_table
+//.extern ISO_META_VALIAS
 /*
  * Context tracking subsystem.  Used to instrument transitions
  * between user and kernel mode.
@@ -168,7 +169,7 @@ alternative_cb_end
 	mrs	x21, sp_el0
 	ldr_this_cpu	tsk, __entry_task, x20	// Ensure MDSCR_EL1.SS is clear,
 	ldr	x19, [tsk, #TSK_TI_FLAGS]	// since we can unmask debug
-	disable_step_tsk x19, x20		// exceptions when scheduling. 성능향상용 주석처리
+	disable_step_tsk x19, x20		// exceptions when scheduling.
 
 	apply_ssbd 1, x22, x23
 
@@ -365,6 +366,12 @@ alternative_else_nop_endif
 	add	sp, sp, #S_FRAME_SIZE		// restore sp
 
 	.if	\el == 0
+
+
+
+
+
+
 alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	bne	5f
@@ -571,7 +578,6 @@ ENDPROC(el1_fiq_invalid)
 el1_error_invalid:
 	inv_entry 1, BAD_ERROR
 ENDPROC(el1_error_invalid)
-
 /* 	
  * EL1t mode handlers.	
  */	
@@ -605,7 +611,6 @@ el0_sync_iso:
 	b.ge	el0_dbg	
 	b	el0_inv	
 ENDPROC(el0_sync_iso)	
-
 /*
  * EL1 mode handlers.
  */
@@ -742,39 +747,146 @@ alternative_else_nop_endif
 	kernel_exit 1
 ENDPROC(el1_irq)
 
+
 /*
  * EL0 mode handlers.
  */
 	.align	6
 el0_sync:
-	//mov x30, xzr // mov 명령어에다가 브레이크 포인트 되는지 테스트
+	msr tpidrro_el0, x19				//backup x19*function address) into tpidr_el0
+	mrs x19, esr_el1 
+	lsr x19, x19, #24			 		//lsr x19, x19, #26 
+
+	cmp x19, #0x56 						//check svc inst
+	bne 5f
+
+	mrs x19, esr_el1
+	and x19, x19, #0xffff
+	cmp x19, #0x0000
+	bne 1f
+	mrs x19, tpidrro_el0				//restore x5 from tpidrro_el0
+	//msr	tpidrro_el0, x30
+	b 6f
+1:
+	cmp x19, #0x0001					//SVC#1 CHECK
+	bne 3f
+
+	// svc1								//core번호로 인한 상대 위치 계산
+	//mrs x19, MPIDR_EL1					// multi thread 저번에 core 안쓰기로했으니 pass
+
+	mrs x20, DAIF 						//Interrupts Mask Bits 액세스가능하게함 63:10
+	and w21, w20, #0x80					//I bitvalue access
+	cbnz w1, 2f							//0이 아닌경우 분 명령이 수행하지 않고 넘어감
+	msr DAIFSET, #2						//I bit check
+
+2:
+	// x19: core 위치, x20: DAIF
+	ldr x21, =_iso_table     //64 register divde two instruction
+	ldr x21, [x21]
+	//sub	x21, x21, #4096	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
+	//add	x21, x21, #8		// domain page의 시작부분에는 domain count가 들어가 있고 그 다음부터 domain struct의 배열임.
+
+	add x21, x21, #8		// domain 0's sp_el0 부분.
+	mrs	x22, sp_el0
+	str x22, [x21]
+	sub x21, x21, #8		// 되돌리기...
+
+	mov x22, #0x18		// domain마다 24bytes만큼 자료할당중. (나중에 core별로 따로 가지도록 설정해야 함.)
+	// x21 = x21 + w0 * w22
+	
+	smaddl	x21, w0, w22, x21	// domain_data_top + domain_num * domain_struct_size = ttbr0_el1 위치.
+
+	// (ttbr0_el1, sp_el0, asid 순서로 구성됨.)
+	ldp	x22, x23, [x21]
+	ldr	x24, [x21, #16]
+
+	// special registers 수정.
+	msr	ttbr0_el1, x22 //ttbr0_el1 설정하기
+	msr	sp_el0, x23 // sp_el0
+	//mrs	x22, ttbr1_el1 // ttbr1_el1
+	//bfi	x22, x24, #48, #16 //ASID 변경 #2
+	//msr	ttbr1_el1, x22
+	isb
+
+	msr	DAIF, x20				// arch_local_irq_restore (enable interrupt)
+	nop	
+	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
+	b 6f
+	
+3:
+	//cmp x5, #0x56000002		// svc 2
+	cmp x19, #0x0002
+	bne 5f
+
+	// svc2
+	// setup sp_el1
+	// core번호로 인한 상대위치 계산.
+
+
+	// arch_local_irq_save (interrupt disable)
+	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
+	mrs x20, DAIF
+	and	w21, w20, #0x80
+	cbnz	w21,	4f
+	msr	DAIFSET, #2
+4:
+	// x19: core 위치, x20: DAIF
+	// (ttbr0_el1, sp_el0, asiet_current_task tsk
+
+	ldr x21, =_iso_table
+	ldr x21, [x21]
+	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
+	//add	x21, x21, #8		// domain page의 시작부분에는 domain count가 들어가 있고 그 다음부터 domain struct의 배열임.
+
+	// (ttbr0_el1, sp_el0, asid 순서로 구성됨.)
+	ldp	x22, x23, [x21]
+	ldr	x24, [x21, #16]
+
+	// special registers 수정.
+	msr	ttbr0_el1, x22
+	msr	sp_el0, x23
+	//mrs	x22, ttbr1_el1
+	//bfi	x22, x24, #48, #16        //ASID 변경 #3
+	//msr	ttbr1_el1, x22
+	isb
+
+	msr	DAIF, x20				// arch_local_irq_restore (enable interrupt)
+	nop	
+	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
+	b 6f
+
+5:	// not svc 0 1 and 2. &  restore x5 from tpidrro_el0
+	mrs	x19, tpidrro_el0
+	//msr	tpidrro_el0, x30
+	b 6f
+6:
 	kernel_entry 0
-	mrs	x25, esr_el1			// read the syndrome register
-	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class
-	cmp	x24, #ESR_ELx_EC_SVC64		// SVC in 64-bit state
-	b.eq	el0_svc
-	cmp	x24, #ESR_ELx_EC_DABT_LOW	// data abort in EL0
-	b.eq	el0_da
-	cmp	x24, #ESR_ELx_EC_IABT_LOW	// instruction abort in EL0
-	b.eq	el0_ia
-	cmp	x24, #ESR_ELx_EC_FP_ASIMD	// FP/ASIMD access
-	b.eq	el0_fpsimd_acc
-	cmp	x24, #ESR_ELx_EC_SVE		// SVE access
-	b.eq	el0_sve_acc
-	cmp	x24, #ESR_ELx_EC_FP_EXC64	// FP/ASIMD exception
-	b.eq	el0_fpsimd_exc
-	cmp	x24, #ESR_ELx_EC_SYS64		// configurable trap
-	ccmp	x24, #ESR_ELx_EC_WFx, #4, ne
-	b.eq	el0_sys
-	cmp	x24, #ESR_ELx_EC_SP_ALIGN	// stack alignment exception
-	b.eq	el0_sp
-	cmp	x24, #ESR_ELx_EC_PC_ALIGN	// pc alignment exception
-	b.eq	el0_pc
-	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL0
-	b.eq	el0_undef
-	cmp	x24, #ESR_ELx_EC_BREAKPT_LOW	// debug exception in EL0
-	b.ge	el0_dbg
-	b	el0_inv
+	mrs	x25, esr_el1			// read the syndrome register	
+	lsr	x24, x25, #ESR_ELx_EC_SHIFT	// exception class	
+	cmp	x24, #ESR_ELx_EC_SVC64		// SVC in 64-bit state	
+	b.eq	el0_svc	
+	cmp	x24, #ESR_ELx_EC_DABT_LOW	// data abort in EL1t	
+	b.eq	el0_da	
+	cmp	x24, #ESR_ELx_EC_IABT_LOW	// instruction abort in EL1t	
+	b.eq	el0_ia	
+	cmp	x24, #ESR_ELx_EC_FP_ASIMD	// FP/ASIMD access	
+	b.eq	el0_fpsimd_acc	
+	cmp	x24, #ESR_ELx_EC_SVE		// SVE access	
+	b.eq	el0_sve_acc	
+	cmp	x24, #ESR_ELx_EC_FP_EXC64	// FP/ASIMD exception	
+	b.eq	el0_fpsimd_exc	
+	cmp	x24, #ESR_ELx_EC_SYS64		// configurable trap	
+	ccmp	x24, #ESR_ELx_EC_WFx, #4, ne	
+	b.eq	el0_sys	
+	cmp	x24, #ESR_ELx_EC_SP_ALIGN	// stack alignment exception	
+	b.eq	el0_sp	
+	cmp	x24, #ESR_ELx_EC_PC_ALIGN	// pc alignment exception	
+	b.eq	el0_pc	
+	cmp	x24, #ESR_ELx_EC_UNKNOWN	// unknown exception in EL1t	
+	b.eq	el0_undef	
+	cmp	x24, #ESR_ELx_EC_BREAKPT_LOW	// debug exception in EL1t	
+	b.ge	el0_dbg	
+	b	el0_inv	
 
 #ifdef CONFIG_COMPAT
 	.align	6
@@ -1027,7 +1139,7 @@ ret_to_user:
 	and	x2, x1, #_TIF_WORK_MASK
 	cbnz	x2, work_pending
 finish_ret_to_user:
-	//enable_step_tsk x1, x2 //하이퍼바이저 성능향상 필요없음 주석 처리
+	//enable_step_tsk x1, x2
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK
 	bl	stackleak_erase
 #endif
@@ -1051,133 +1163,6 @@ ENDPROC(el0_svc)
 /*
  * Exception vectors trampoline.
  */
-
-	.ltorg	
-	.pushsection ".iso_change_code.text", "ax"
-	.align PAGE_SHIFT
-
-iso_cxg_dom_code:
-	msr	tpidrro_el0, x19					// backup x19(function address) into tpidrro_el0
-	mrs	x19, esr_el1
-	lsr x19, x19, #24 						//lsr x19, x19, #26
-
-	cmp	x19, #0x56 // check svc inst
-	bne	5f
-
-	mrs	x19, esr_el1
-	and	x19, x19, #0xffff
-	cmp x19, #0x0000
-	bne 1f
-	mrs	x19, tpidrro_el0			// restore x5 from tpidrro_el0
-	b	iso_kernel_ventry_entry
-1:
-	//mrs	x19, esr_el1
-	//and	x19, x19, #0xffff
-	cmp x19, #0x0001
-	bne 3f
-	
-	// svc1
-	// setup sp_el1
-	// core번호로 인한 상대위치 계산.
-	/*
-	mrs	x19, MPIDR_EL1	// 이 register에 cluster / core 에 대한게 있는듯. 하지만 rpi4는 1cluster니까 그냥 해보자...
-	mov	x20, #32
-	add x19, x19, #1			// 0번 core부터 시작하니까 한칸 건너뛰기 위해서...
-	mul x19, x19, x20			// 4개 register 저장공간 확보
-	*/
-
-	// arch_local_irq_save (interrupt disable)
-	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
-	mrs x20, DAIF	//Interrupts Mask Bits  액세스가능하게함 63:10
-	and	w21, w20, #0x80  //I bitvalue access
-	cbnz	w21, 2f // 0 이 아닌경우 분ㅣ명령이 수행지 않고 넘어감 // 1F 32 refix
-	msr	DAIFSET, #2 // I bit check
-
-2:
-	// x19: core 위치, x20: DAIF
-	mov_q	x21, ISO_CODE_VALIAS //64 register divde two instruction
-	sub	x21, x21, #4096	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
-	add	x21, x21, #8		// domain page의 시작부분에는 domain count가 들어가 있고 그 다음부터 domain struct의 배열임.
-
-	add x21, x21, #8		// domain 0's sp_el0 부분.
-	mrs	x22, sp_el0
-	str x22, [x21]
-	sub x21, x21, #8		// 되돌리기...
-
-	mov x22, #0x18		// domain마다 24bytes만큼 자료할당중. (나중에 core별로 따로 가지도록 설정해야 함.)
-	// x21 = x21 + w0 * w22
-	smaddl	x21, w0, w22, x21	// x7 = x5 + x4 * x6 = domain_data_top + domain_num * domain_struct_size = ttbr0_el1 위치.
-
-	// (ttbr0_el1, sp_el0, asid 순서로 구성됨.)
-	ldp	x22, x23, [x21]
-	ldr	x24, [x21, #16]
-
-	// special registers 수정.
-	msr	ttbr0_el1, x22 //ttbr0_el1 설정하기
-	msr	sp_el0, x23 // sp_el0
-	mrs	x22, ttbr1_el1 // ttbr1_el1
-	bfi	x22, x24, #48, #16 //ASID 변경 #2
-	msr	ttbr1_el1, x22
-	isb
-
-	msr	DAIF, x20				// arch_local_irq_restore (enable interrupt)
-	nop	
-	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
-	eret	// exit from SVC #1
-3:
-	//cmp x5, #0x56000002		// svc 2
-	cmp x19, #0x0002
-	bne 5f
-
-	// svc2
-	// setup sp_el1
-	// core번호로 인한 상대위치 계산.
-	/*
-	mrs	x19, MPIDR_EL1	// 이 register에 cluster / core 에 대한게 있는듯. 하지만 rpi4는 1cluster니까 그냥 해보자... Multiprocessor Affinity Register
-	mov	x20, #32
-	add x19, x19, #1			// 0번 core부터 시작하니까 한칸 건너뛰기 위해서...
-	mul x19, x19, x20			// 4개 register 저장공간 확보
-	*/
-
-	// arch_local_irq_save (interrupt disable)
-	// 약간 변형해서 사용해보자... (쓸모없어보이는 코드는 제외하는 방식으로...)
-	mrs x20, DAIF
-	and	w21, w20, #0x80
-	cbnz	w21,	4f
-	msr	DAIFSET, #2
-
-4:
-	// x19: core 위치, x20: DAIF
-	mov_q	x21, ISO_CODE_VALIAS
-	sub	x21, x21, #4096	// iso_cxg_dom_code의 시작부분으로부터 page size 만큼 떨어지면 domain page의 시작부분임.
-	add	x21, x21, #8		// domain page의 시작부분에는 domain count가 들어가 있고 그 다음부터 domain struct의 배열임.
-
-	// (ttbr0_el1, sp_el0, asid 순서로 구성됨.)
-	ldp	x22, x23, [x21]
-	ldr	x24, [x21, #16]
-
-	// special registers 수정.
-	msr	ttbr0_el1, x22
-	msr	sp_el0, x23
-	mrs	x22, ttbr1_el1
-	bfi	x22, x24, #48, #16        //ASID 변경 #3
-	msr	ttbr1_el1, x22
-	isb
-
-	msr	DAIF, x20				// arch_local_irq_restore (enable interrupt)
-	nop	
-	msr	tpidrro_el0, xzr		// tpidrro_el0을 0으로 초기화.
-	eret	// exit from SVC #2
-
-5:	// not svc 0 1 and 2. &  restore x5 from tpidrro_el0
-	mrs	x19, tpidrro_el0
-	b iso_kernel_ventry_entry
-
-ENDPROC(iso_cxg_dom_code)
-
-	.ltorg
-	.popsection		 		// .iso_change_code.text
-
 	.pushsection ".entry.tramp.text", "ax"
 
 	.macro tramp_map_kernel, tmp
@@ -1242,39 +1227,6 @@ alternative_else_nop_endif
 	ret
 	.endm
 
-	.macro iso_tramp_ventry, regsize = 64
-	.align	7
-1:
-	B	iso_cxg_dom_code
-	iso_kernel_ventry_entry:
-	.if	\regsize == 64
-	msr	tpidrro_el0, x30	// Restored in kernel_ventry
-	.endif
-	/*
-	 * Defend against branch aliasing attacks by pushing a dummy
-	 * entry onto the return stack and using a RET instruction to
-	 * enter the full-fat kernel vectors.
-	 */
-	bl	2f
-	b	.
-2:
-	tramp_map_kernel	x30
-#ifdef CONFIG_RANDOMIZE_BASE
-	adr	x30, tramp_vectors + PAGE_SIZE
-alternative_insn isb, nop, ARM64_WORKAROUND_QCOM_FALKOR_E1003
-	ldr	x30, [x30]
-#else
-	ldr	x30, =vectors
-#endif
-alternative_if_not ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM
-	prfm	plil1strm, [x30, #(1b - tramp_vectors)]
-alternative_else_nop_endif
-	msr	vbar_el1, x30
-	add	x30, x30, #(1b - tramp_vectors)
-	isb
-	ret
-	.endm
-
 	.macro tramp_exit, regsize = 64
 	adr	x30, tramp_vectors
 	msr	vbar_el1, x30
@@ -1290,11 +1242,11 @@ alternative_else_nop_endif
 ENTRY(tramp_vectors)
 	.space	0x400
 
-	iso_tramp_ventry
 	tramp_ventry
 	tramp_ventry
 	tramp_ventry
-	
+	tramp_ventry
+
 	tramp_ventry	32
 	tramp_ventry	32
 	tramp_ventry	32
@@ -1320,6 +1272,7 @@ __entry_tramp_data_start:
 	.popsection				// .rodata
 #endif /* CONFIG_RANDOMIZE_BASE */
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
+
 // special registers 수정.
 	msr	ttbr0_el1, x22
 	msr	sp_el0, x23
@@ -1332,7 +1285,7 @@ __entry_tramp_data_start:
  * and restored. On entry:
  *   x0 = previous task_struct (must be preserved across the switch)
  *   x1 = next task_struct
- * Prevdd if=./test of=./svc/test.isoious and next are guaranteed not to be the same.
+ * Previous and next are guaranteed not to be the same.
  *
  */
 ENTRY(cpu_switch_to)
